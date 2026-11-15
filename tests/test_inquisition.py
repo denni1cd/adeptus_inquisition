@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from inquisition.engine import GateError, Ledger, canonical, digest, read_json
+from inquisition.engine import GateError, Ledger, canonical, digest, read_json, normalize
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_KEY = "fixture-only-never-a-production-trust-key"
@@ -46,6 +46,7 @@ def manifest(event, candidate_id="candidate-1", tags=None, paths=None):
             "regression_checks": ["previous successful one-space case"],
             "holdout_checks": ["previously unseen tab and newline case"],
             "proposer_invocation_id": "synthetic-proposer",
+            "proposer_context_id": "synthetic-context-proposer",
             "criteria_hash": event["criteria_hash"]}
 
 
@@ -68,6 +69,7 @@ class ActualFixtureTests(unittest.TestCase):
         for text in (" Connection  timeout ", "CONNECTION\tTIMEOUT",
                      "connection\n timeout"):
             self.assertEqual(candidate.normalize_issue(text), "connection timeout")
+            self.assertEqual(normalize(text), "connection timeout")
         # Formerly successful behavior retained.
         self.assertEqual(candidate.normalize_issue("other issue"), "other issue")
         self.assertNotEqual(candidate.normalize_issue("other issue"),
@@ -104,7 +106,8 @@ class LedgerTests(unittest.TestCase):
         self.ledger.ingest(self.failure)
         self.ledger.attempt("evt-failure", "ISS-001",
                             "Normalize all embedded whitespace consistently",
-                            "actual-fixture-reproduction", "PENDING")
+                            "actual-fixture-reproduction", "PENDING",
+                            "synthetic-reformer", "synthetic-context-reformer")
         path = Path(self.home) / "recovery.json"
         path.write_text(json.dumps(receipt("evaluator", "evt-failure:ISS-001:1",
                                           "recovery-evaluator", checks=checks())))
@@ -135,7 +138,7 @@ class LedgerTests(unittest.TestCase):
                                                   checks=checks()), TEST_KEY)
         self.assertEqual(self.ledger.decide("candidate-1"), "IMPROVEMENT_REJECTED")
         with self.assertRaises(GateError):
-            self.ledger.activate("candidate-1", "d" * 64, "fake-invocation")
+            self.ledger.activate("candidate-1", None, TEST_KEY)
 
     def test_5_exactly_three_and_no_renaming_reset(self):
         self.ledger.ingest(self.failure)
@@ -174,8 +177,12 @@ class LedgerTests(unittest.TestCase):
         self.ledger.decide("candidate-1",
                            "https://github.com/denni1cd/adeptus_inquisition/pull/1")
         self.assertTrue(self.ledger.activate("candidate-1").startswith("BLOCKED"))
-        self.assertEqual(self.ledger.activate("candidate-1", "d" * 64,
-                                              "synthetic-load-trace"), "ACTIVE_PROVISIONAL")
+        load = receipt("loader", "candidate-1", "load", checks=None)
+        load["payload"]["content_sha256"] = "d" * 64
+        load["payload"]["loaded_commit"] = "c" * 40
+        load = sign(load["payload"])
+        self.assertEqual(self.ledger.activate("candidate-1", load, TEST_KEY),
+                         "ACTIVE_PROVISIONAL")
         self.assertEqual(self.ledger.data["active"][
             "denni1cd/adeptus_inquisition"]["kind"], "VALIDATED_LOCAL")
         self.assertEqual(self.ledger.rollback("denni1cd/adeptus_inquisition")["kind"],
