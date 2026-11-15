@@ -26,7 +26,8 @@ def main(argv=None):
     a.add_argument("--reformer-context-id")
     cmd("recover", "event_id", "issue_id", "receipt")
     cmd("milestone", "event_id", "inspection")
-    cmd("suspend", "event_id", "disposition", "reason", "evidence")
+    s = cmd("suspend", "event_id", "disposition", "reason", "evidence")
+    s.add_argument("--issue-id")
     cmd("no-improvement", "event_id", "reason", "evidence")
     cmd("candidate", "event_id", "manifest")
     cmd("review", "candidate_id", "receipt")
@@ -54,7 +55,7 @@ def main(argv=None):
         elif args.action == "milestone":
             result = ledger.close_milestone(args.event_id, read_json(args.inspection))
         elif args.action == "suspend":
-            result = ledger.suspend(args.event_id, None, args.disposition,
+            result = ledger.suspend(args.event_id, args.issue_id, args.disposition,
                                     args.reason, args.evidence)
         elif args.action == "no-improvement":
             result = ledger.no_improvement(args.event_id, args.reason, args.evidence)
