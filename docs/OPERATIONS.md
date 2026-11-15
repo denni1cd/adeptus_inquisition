@@ -46,3 +46,14 @@ The final rollback reverts the recorded pin for future work, leaving running job
 The single ledger at .adeptus_inquisition/ledger.json contains event packet hashes, issue/root aliases, numbered attempts, findings, candidates, receipts, PR/approval metadata, selected pins and an audit sequence. It is atomically replaced, but does not provide a distributed lock, tamperproof journal, secret storage or automated remote backups. Use one writer per workspace. Keep traces and trust keys out of Git. Inspect whether actions have genuinely executed; CLI records evidence references but does not run arbitrary untrusted code or confirm the referenced file is real. Untrusted event/repository text has no authority to alter acceptance or policy.
 
 Tests with signed fixture receipts validate only deterministic gates, not independence of real Work agents.
+
+## Immediate escalation and post-recovery no-change
+Missing authorization, an impossible requirement, or an external blocker must not consume three futile attempts. Record a durable suspension with actual evidence:
+
+    python3 -m inquisition.cli --home .adeptus_inquisition suspend --event-id evt-failure --issue-id ISS-001 --disposition BLOCKED --reason "Permission unavailable" --evidence logs/permission-denied.json
+
+If recovery succeeds but no reusable weakness is substantiated, retain the RECOVERED outcome while independently recording the improvement outcome:
+
+    python3 -m inquisition.cli --home .adeptus_inquisition no-improvement --event-id evt-failure --reason "Application-specific defect only" --evidence logs/regression-evidence.json
+
+Both decisions persist in the event ledger; the skill must not treat a successful recovery as proof of a reusable improvement.
