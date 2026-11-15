@@ -320,6 +320,10 @@ class Ledger:
         adversary, evaluator = reviews["adversary"], reviews["evaluator"]
         if adversary["verdict"] != "PASS" or evaluator["verdict"] != "PASS":
             candidate["disposition"] = "IMPROVEMENT_REJECTED"
+            event = self.event(candidate["event"])
+            event["improvement_disposition"] = "IMPROVEMENT_REJECTED"
+            if event["disposition"] == "PAUSED":
+                event["disposition"] = "IMPROVEMENT_REJECTED"
             self.save("reject", {"candidate": candidate_id,
                                  "adversary": adversary["verdict"],
                                  "evaluator": evaluator["verdict"]})
