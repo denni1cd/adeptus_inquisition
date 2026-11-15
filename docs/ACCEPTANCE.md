@@ -1,6 +1,6 @@
 # V1 acceptance execution ledger — 2026-11-15
 
-Evidence: GitHub Actions run https://github.com/denni1cd/adeptus_inquisition/actions/runs/43731007013 at commit 66463728d65392da78905acc12b0e0f66bf90cb9 executed 12 Python unittest checks successfully, plus an actual detached baseline/candidate worktree selection and skill-file SHA256 check. PR https://github.com/denni1cd/adeptus_inquisition/pull/1 is real, open, draft. The test run's log printed candidate SKILL.md SHA256 1cababc7b1f04395671cf973f71bf7edfce10113e416fe7eff0eaebf750c1268. CI may rerun as the PR evolves.
+Evidence: GitHub Actions run https://github.com/denni1cd/adeptus_inquisition/actions/runs/43731358105 at commit f2ec54b983e869ae9f4cc61ee7fbf983042305f3 executed 16 Python unittest checks successfully, plus an actual detached baseline/candidate worktree selection and skill-file SHA256 check. PR https://github.com/denni1cd/adeptus_inquisition/pull/1 is real, open, draft. The test run's log printed candidate SKILL.md SHA256 1cababc7b1f04395671cf973f71bf7edfce10113e416fe7eff0eaebf750c1268. CI may rerun as the PR evolves.
 
 **Crucial scope note:** A synthetic HMAC-signed unit-test receipt is NOT an actual native ChatGPT Work subagent invocation. "PASS" below means the full requested scenario was actually exercised; when that did not happen, the top-level status is BLOCKED regardless of green unit tests.
 
@@ -25,3 +25,5 @@ Evidence: GitHub Actions run https://github.com/denni1cd/adeptus_inquisition/act
 
 ## Non-goals and follow-up
 This skill is independently invocable as an instruction package plus CLI and fixtures, but full autonomous self-improvement is NOT yet proven. A Work session with native agent delegation, host-attested review receipts and fresh-skill loading is required. Work should invoke the skill in this PR's pinned checkout, run tests 2–4 and 7 against real delegated contexts, demonstrate the exact loaded hash for test 6, and update this table with links to authentic tool traces. Never convert these BLOCKED entries to PASS based on a simulated agent or a written scenario.
+
+New negative cases in the 16-test run cover immediate evidenced BLOCKED state without any consumed attempt, recovery followed by NO_CHANGE_JUSTIFIED on reusable improvement, separate budgets for independent root causes, stable root identity after rerouting to another subsystem, and refusal to repair or propose a candidate outside event authorization.
