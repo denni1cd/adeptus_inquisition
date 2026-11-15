@@ -7,7 +7,7 @@ Clone a **pinned** commit of denni1cd/adeptus_inquisition and supply the folder 
 Every event must include a stable event_id, trigger (TERMINAL_FAILURE or MAJOR_MILESTONE), original objective and constraints, frozen approved acceptance criteria, milestone, active branch and commit, artifacts and actual tests, reviews, stable issue/root identifiers and branch retry history, permitted repos/actions, and an approved baseline skill commit/hash. See fixtures/failure.json and schemas/event.schema.json.
 
     python3 -m inquisition.cli --home .adeptus_inquisition ingest --package fixtures/failure.json
-    python3 -m inquisition.cli --home .adeptus_inquisition attempt --event-id evt-failure --issue-id ISS-001 --hypothesis "Normalize all internal whitespace before identity lookup" --evidence tests/reproduction.log --outcome PENDING
+    python3 -m inquisition.cli --home .adeptus_inquisition attempt --event-id evt-failure --issue-id ISS-001 --hypothesis "Normalize all internal whitespace before identity lookup" --evidence tests/reproduction.log --outcome PENDING --reformer-invocation-id NATIVE_REFORMER_ID --reformer-context-id NATIVE_CONTEXT_ID
 
 A failed additional hypothesis uses --outcome FAILED. The CLI refuses a fourth attempt, refuses identical hypothesis wording, persists counts across interrupted runs, and maps duplicate scope/root-cause signatures under a canonical ID even with renamed source IDs. An Investigator must still reconcile semantically similar root causes: the fingerprint cannot establish that two paraphrased diagnoses are identical.
 
@@ -21,7 +21,7 @@ For a clean milestone:
     python3 -m inquisition.cli --home .adeptus_inquisition milestone --event-id evt-clean --inspection fixtures/clean_inspection.json
 
 ## Independent review receipts
-The gate consumes signed JSON objects with payload and signature. The signature is HMAC-SHA256 over canonical JSON (sorted object keys, compact separators, ASCII encoding) using INQUISITION_TRUST_KEY, held by the **trusted verification service**, not the Reformer. Payload fields: role, subject, invocation_id, context_id, tool_trace, verdict, evidence. Evaluator improvement receipt also requires checks for baseline, candidate, regression and holdout, each with executed=true and an artifact path. A verifier must inspect actual, separate Work delegation events and independently executed commands before signing. A signature alone attests to the verifier, not to the truth of an arbitrary payload. Never use the fixture key in production.
+The gate consumes signed JSON objects with payload and signature. The signature is HMAC-SHA256 over canonical JSON (sorted object keys, compact separators, ASCII encoding) using INQUISITION_TRUST_KEY, held by the **trusted verification service**, not the Reformer. Payload fields: role, subject, invocation_id, context_id, tool_trace, verdict, evidence. Evaluator improvement receipt also requires checks for baseline, candidate, regression and holdout, each with executed=true and an artifact path. A verifier must inspect actual, separate Work delegation events and independently executed commands before signing. A signature alone attests to the verifier, not to the truth of an arbitrary payload. A loader receipt must additionally attest loaded_commit and content_sha256, and an Emperor approval receipt must include explicit=true. Never use the fixture key in production.
 
 Current host tools do not expose native Work delegation events or a host-managed trusted signer. Until this integration exists, the skill must report BLOCKED instead of issuing artificial PASS. No handwritten fake agent receipt or roleplay is acceptable.
 
@@ -33,11 +33,11 @@ Register a candidate manifest with: candidate_id; authorized repository; baselin
     python3 -m inquisition.cli --home .adeptus_inquisition review --candidate-id candidate-1 --receipt trusted-evaluator.json
     python3 -m inquisition.cli --home .adeptus_inquisition decide --candidate-id candidate-1 --pr-url https://github.com/OWNER/REPO/pull/NUMBER
 
-Major behavioral changes need a real isolated worktree, PR and baseline comparison. Minor still need independent review and validation. Protected changes to Inquisition's governing rules additionally require --approval approval.json documenting authenticated explicit Emperor approval with fields explicit=true, scope=<candidate ID>, evidence=<approval reference>. The coordinator MUST independently authenticate both PR and Emperor, not take user-controlled JSON at face value.
+Major behavioral changes need a real isolated worktree, PR and baseline comparison. Minor still need independent review and validation. Protected changes to Inquisition's governing rules additionally require --approval approval.json containing a trusted signed emperor-approval receipt for this exact candidate, verifiable against an actual explicit Emperor authorization event. The coordinator MUST independently authenticate both PR and Emperor, not take user-controlled JSON at face value.
 
 Candidate activation requires a separately verified fresh Work invocation which actually loaded the declared content digest. The CLI records a selected pin; it does not deploy a checkout, install the skill, or reload live agents:
 
-    python3 -m inquisition.cli --home .adeptus_inquisition activate --candidate-id candidate-1 --observed-hash FULL_SHA256 --invocation-evidence FRESH_WORK_TOOL_TRACE
+    python3 -m inquisition.cli --home .adeptus_inquisition activate --candidate-id candidate-1 --receipt trusted-fresh-work-loader.json
     python3 -m inquisition.cli --home .adeptus_inquisition rollback --repository OWNER/REPO
 
 The final rollback reverts the recorded pin for future work, leaving running jobs on their own pinned versions. GitHub merged version and locally active version are deliberately separate.
