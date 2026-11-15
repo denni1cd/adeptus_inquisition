@@ -243,6 +243,68 @@ class LedgerTests(unittest.TestCase):
                               "Fix source-provided casing before lookup",
                               "repeated-case-log")
 
+    def test_immediate_external_blocker_consumes_no_attempts(self):
+        self.ledger.ingest(self.failure)
+        state = self.ledger.suspend("evt-failure", "ISS-001", "BLOCKED",
+                                    "Required external repository permission is missing",
+                                    "tool-output/permission-denied.json")
+        self.assertEqual(state, "BLOCKED")
+        root = self.ledger.root_for_issue("evt-failure", "ISS-001")
+        self.assertEqual(len(root["attempts"]), 0)
+        self.assertEqual(root["status"], "BLOCKED")
+        self.assertIn("next_action", self.ledger.event("evt-failure")["escalation"])
+
+    def test_recovery_and_no_reusable_improvement_are_separate(self):
+        self.ledger.ingest(self.failure)
+        self.ledger.attempt("evt-failure", "ISS-001",
+                            "Fix canonical key handling before issue lookup",
+                            "run/repair.log", "PENDING",
+                            "reformer-delegation", "reformer-private-context")
+        path = Path(self.home) / "recovery-2.json"
+        path.write_text(json.dumps(receipt("evaluator", "evt-failure:ISS-001:1",
+                                          "second-evaluator", checks=checks())))
+        self.ledger.resolve_recovery("evt-failure", "ISS-001", path, TEST_KEY)
+        state = self.ledger.no_improvement("evt-failure",
+                         "The defect was isolated application data, not a reusable skill",
+                         "tests/heldout-and-regression-results.txt")
+        self.assertEqual(state, "RECOVERED")
+        event = Ledger(self.home).event("evt-failure")
+        self.assertEqual(event["recovery_disposition"], "RECOVERED")
+        self.assertEqual(event["improvement_disposition"], "NO_CHANGE_JUSTIFIED")
+
+    def test_independent_roots_get_separate_budgets_and_reroute_preserves_identity(self):
+        self.ledger.ingest(self.failure)
+        separate = copy.deepcopy(self.failure)
+        separate["event_id"] = "evt-independent"
+        separate["issues"][0]["id"] = "ISS-NEW"
+        separate["issues"][0]["root_cause"] = "corrupted checksum parser"
+        separate["issues"][0]["root_key"] = "checksums"
+        self.ledger.ingest(separate)
+        self.assertEqual(len(self.ledger.data["roots"]), 2)
+        self.ledger.attempt("evt-independent", "ISS-NEW",
+                            "Validate checksum parser before loading state",
+                            "logs/checksum-case.log", "FAILED")
+        self.assertEqual(len(self.ledger.root_for_issue(
+            "evt-failure", "ISS-001")["attempts"]), 0)
+        rerouted = copy.deepcopy(self.failure)
+        rerouted["event_id"] = "evt-rerouted"
+        rerouted["issues"][0]["id"] = "ISS-REROUTED"
+        rerouted["issues"][0]["scope"] = "another subsystem"
+        self.ledger.ingest(rerouted)
+        self.assertEqual(self.ledger.event("evt-rerouted")["issue_map"]["ISS-REROUTED"],
+                         self.ledger.event("evt-failure")["issue_map"]["ISS-001"])
+
+    def test_action_allowlist_rejects_unauthorized_repair_and_skill_change(self):
+        self.ledger.ingest(self.clean)
+        with self.assertRaises(GateError):
+            self.ledger.attempt("evt-clean", "not-an-issue",
+                                "Attempt an unauthorized implementation repair",
+                                "logs/unauthorized.log", "FAILED")
+        with self.assertRaises(GateError):
+            self.ledger.candidate("evt-clean", manifest(
+                self.ledger.event("evt-clean")))
+
+
 
 if __name__ == "__main__":
     unittest.main()
