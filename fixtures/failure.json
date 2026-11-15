@@ -1,0 +1,82 @@
+{
+  "event_id": "evt-failure",
+  "trigger": "TERMINAL_FAILURE",
+  "objective": "Fix issue identity deduplication without breaking unrelated issue keys",
+  "constraints": [
+    "Do not modify unaffected reusable workflows"
+  ],
+  "contract": {
+    "id": "FAIL-1",
+    "approved": true,
+    "criteria": [
+      {
+        "id": "AC-1",
+        "test": "Equivalent whitespace has identical issue key"
+      },
+      {
+        "id": "AC-2",
+        "test": "Different issues remain distinct"
+      }
+    ]
+  },
+  "milestone": null,
+  "branch": {
+    "name": "adeptus_necroneerium",
+    "version": {
+      "repository": "denni1cd/adeptus_necroneerium",
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "artifacts": [
+    {
+      "type": "failure_log",
+      "path": "tests/whitespace-baseline.log",
+      "result": "FAIL"
+    }
+  ],
+  "reviews": [
+    {
+      "reviewer": "shade",
+      "verdict": "TERMINAL_FAIL",
+      "evidence": "tests/whitespace-baseline.log"
+    }
+  ],
+  "issues": [
+    {
+      "id": "ISS-001",
+      "scope": "issue_registry",
+      "root_key": "whitespace-alias",
+      "root_cause": "whitespace inconsistencies in issue identity",
+      "branch_attempts": [
+        {
+          "number": 0,
+          "outcome": "FAIL"
+        },
+        {
+          "number": 1,
+          "outcome": "FAIL"
+        },
+        {
+          "number": 2,
+          "outcome": "FAIL"
+        }
+      ]
+    }
+  ],
+  "authorization": {
+    "repositories": [
+      "denni1cd/adeptus_inquisition"
+    ],
+    "actions": [
+      "inspect",
+      "test",
+      "repair",
+      "propose_skill_change"
+    ]
+  },
+  "baseline": {
+    "repository": "denni1cd/adeptus_inquisition",
+    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "skill_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+}
