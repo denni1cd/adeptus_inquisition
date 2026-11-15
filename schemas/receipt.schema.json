@@ -22,7 +22,9 @@
         "role": {
           "enum": [
             "adversary",
-            "evaluator"
+            "evaluator",
+            "loader",
+            "emperor-approval"
           ]
         },
         "subject": {
@@ -49,6 +51,17 @@
         },
         "checks": {
           "type": "object"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "loaded_commit": {
+          "type": "string",
+          "minLength": 7
+        },
+        "explicit": {
+          "type": "boolean"
         }
       }
     },
