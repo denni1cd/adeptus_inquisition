@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Trusted independent subagent receipt V1",
+  "type": "object",
+  "required": [
+    "payload",
+    "signature"
+  ],
+  "properties": {
+    "payload": {
+      "type": "object",
+      "required": [
+        "role",
+        "subject",
+        "invocation_id",
+        "context_id",
+        "tool_trace",
+        "verdict",
+        "evidence"
+      ],
+      "properties": {
+        "role": {
+          "enum": [
+            "adversary",
+            "evaluator",
+            "loader",
+            "emperor-approval"
+          ]
+        },
+        "subject": {
+          "type": "string"
+        },
+        "invocation_id": {
+          "type": "string"
+        },
+        "context_id": {
+          "type": "string"
+        },
+        "tool_trace": {
+          "type": "string"
+        },
+        "verdict": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "BLOCKED"
+          ]
+        },
+        "evidence": {
+          "type": "string"
+        },
+        "checks": {
+          "type": "object"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "loaded_commit": {
+          "type": "string",
+          "minLength": 7
+        },
+        "explicit": {
+          "type": "boolean"
+        }
+      }
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  }
+}

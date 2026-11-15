@@ -1,0 +1,55 @@
+{
+  "event_id": "evt-clean",
+  "trigger": "MAJOR_MILESTONE",
+  "objective": "Complete a verified module with no evidenced process weakness",
+  "constraints": [
+    "Do not modify unaffected reusable workflows"
+  ],
+  "contract": {
+    "id": "CLEAN-1",
+    "approved": true,
+    "criteria": [
+      {
+        "id": "AC-1",
+        "test": "existing public behavior regression test passes"
+      }
+    ]
+  },
+  "milestone": "release-one",
+  "branch": {
+    "name": "adeptus_necroneerium",
+    "version": {
+      "repository": "denni1cd/adeptus_necroneerium",
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "artifacts": [
+    {
+      "type": "test_log",
+      "path": "tests/sample-green.log",
+      "result": "PASS"
+    }
+  ],
+  "reviews": [
+    {
+      "reviewer": "shade",
+      "verdict": "PASS",
+      "evidence": "tests/sample-green.log"
+    }
+  ],
+  "issues": [],
+  "authorization": {
+    "repositories": [
+      "denni1cd/adeptus_inquisition"
+    ],
+    "actions": [
+      "inspect",
+      "record"
+    ]
+  },
+  "baseline": {
+    "repository": "denni1cd/adeptus_inquisition",
+    "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "skill_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  }
+}
