@@ -1,0 +1,16 @@
+name: Inquisition deterministic gates
+on:
+  pull_request:
+  push:
+    branches: [main, "feat/**"]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python standard library tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Entry point smoke check
+        run: python3 -m inquisition.cli --help
