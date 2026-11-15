@@ -123,7 +123,8 @@ class Ledger:
         record = {
             "packet_hash": packet_hash, "packet": package, "issue_map": issue_map,
             "criteria_hash": digest(package["contract"]["criteria"]),
-            "disposition": "PAUSED", "findings": [], "candidate_ids": []
+            "disposition": "PAUSED", "recovery_disposition": None,
+            "improvement_disposition": None, "findings": [], "candidate_ids": []
         }
         self.data["events"][eid] = record
         self.save("ingest", {"event": eid, "issues": issue_map})
@@ -165,6 +166,11 @@ class Ledger:
         if n == MAX_ATTEMPTS and outcome == "FAILED":
             root["status"] = "ESCALATED"
             event["disposition"] = "ESCALATED"
+            event["escalation"] = {
+                "root_cause": root["cause"], "issue": issue_id,
+                "attempts": root["attempts"],
+                "next_action": "Emperor review: exhausted three additional meaningful hypotheses"
+            }
         self.save("attempt", {"root": event["issue_map"][issue_id], "record": item})
         return item
 
@@ -186,6 +192,7 @@ class Ledger:
         attempt["outcome"] = "RECOVERED"
         attempt["evaluator"] = payload
         root["status"] = "RECOVERED"
+        event["recovery_disposition"] = "RECOVERED"
         event["disposition"] = "RECOVERED"
         self.save("recovery", {"event": event_id, "root": event["issue_map"][issue_id]})
         return attempt
@@ -201,8 +208,40 @@ class Ledger:
                 inspection.get("reason") and inspection.get("no_change") is True,
                 "substantiated no-change inspection required")
         event["findings"].append(inspection)
+        event["improvement_disposition"] = "NO_CHANGE_JUSTIFIED"
         event["disposition"] = "NO_CHANGE_JUSTIFIED"
         self.save("release_milestone", {"event": event_id, "inspection": inspection})
+        return event["disposition"]
+
+    def suspend(self, event_id, issue_id, disposition, reason, evidence):
+        """Durably stop futile or unauthorized work without spending a retry."""
+        require(disposition in {"BLOCKED", "ESCALATED"}, "invalid suspension state")
+        require(reason and evidence, "evidenced blocker and next action required")
+        event = self.event(event_id)
+        require(event["disposition"] == "PAUSED", "event already disposed")
+        if issue_id:
+            root = self.root_for_issue(event_id, issue_id)
+            root["status"] = disposition
+        record = {"issue": issue_id, "reason": reason, "evidence": evidence,
+                  "next_action": "Emperor or owning workflow resolves the blocker"}
+        event["findings"].append(record)
+        event["disposition"] = disposition
+        event["escalation"] = record
+        self.save("suspend", {"event": event_id, "state": disposition, "finding": record})
+        return disposition
+
+    def no_improvement(self, event_id, reason, evidence):
+        """Preserve recovery outcome while explicitly declining unjustified skill changes."""
+        event = self.event(event_id)
+        require(event["disposition"] in {"PAUSED", "RECOVERED"},
+                "cannot decline improvement on a closed event")
+        require(reason and evidence, "no-change outcome requires evidence")
+        event["improvement_disposition"] = "NO_CHANGE_JUSTIFIED"
+        event["findings"].append({"classification": "no_reusable_improvement",
+                                  "reason": reason, "evidence": evidence})
+        if event["disposition"] == "PAUSED":
+            event["disposition"] = "NO_CHANGE_JUSTIFIED"
+        self.save("no_improvement", {"event": event_id, "reason": reason})
         return event["disposition"]
 
     def candidate(self, event_id, manifest):
@@ -301,6 +340,7 @@ class Ledger:
         candidate["disposition"] = "IMPROVEMENT_VALIDATED"
         candidate["pr_url"] = pr_url
         candidate["emperor_approval"] = emperor_approval
+        self.event(candidate["event"])["improvement_disposition"] = "IMPROVEMENT_VALIDATED"
         self.event(candidate["event"])["disposition"] = "IMPROVEMENT_VALIDATED"
         self.save("validated", {"candidate": candidate_id, "classification": classification,
                                  "pr": pr_url})
