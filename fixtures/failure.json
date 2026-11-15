@@ -71,7 +71,8 @@
       "inspect",
       "test",
       "repair",
-      "propose_skill_change"
+      "propose_skill_change",
+      "activate_skill"
     ]
   },
   "baseline": {
