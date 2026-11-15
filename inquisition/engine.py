@@ -146,6 +146,8 @@ class Ledger:
             require(reformer_invocation_id and reformer_context_id,
                     "pending repair needs attributed Reformer invocation and context")
         event = self.event(event_id)
+        require("repair" in event["packet"]["authorization"]["actions"],
+                "repair outside event authorization")
         require(event["disposition"] == "PAUSED", "event already disposed")
         root = self.root_for_issue(event_id, issue_id)
         require(root["status"] != "RECOVERED", "issue already recovered")
@@ -191,6 +193,8 @@ class Ledger:
     def close_milestone(self, event_id, inspection):
         event = self.event(event_id)
         require(event["packet"]["trigger"] == "MAJOR_MILESTONE", "not a milestone")
+        require("inspect" in event["packet"]["authorization"]["actions"],
+                "milestone inspection outside event authorization")
         require(not event["packet"]["issues"], "cannot close milestone with unresolved issues")
         require(event["disposition"] == "PAUSED", "milestone already closed")
         require(inspection.get("inspected_artifacts") and inspection.get("checks") and
@@ -203,6 +207,8 @@ class Ledger:
 
     def candidate(self, event_id, manifest):
         event = self.event(event_id)
+        require("propose_skill_change" in event["packet"]["authorization"]["actions"],
+                "candidate creation outside event authorization")
         mandatory = ["candidate_id", "repository", "baseline_commit", "candidate_commit",
                      "content_sha256", "changed_paths", "impact_tags", "hypothesis",
                      "baseline_checks", "candidate_checks", "regression_checks",
@@ -212,6 +218,8 @@ class Ledger:
                 "candidate must not redefine acceptance criteria")
         require(manifest["repository"] in event["packet"]["authorization"]["repositories"],
                 "repository not authorized")
+        require(manifest["repository"] == event["packet"]["baseline"]["repository"],
+                "baseline repository mismatch")
         require(manifest["baseline_commit"] == event["packet"]["baseline"]["commit"],
                 "candidate is not based on pinned baseline")
         require(manifest["candidate_commit"] != manifest["baseline_commit"],
@@ -302,6 +310,9 @@ class Ledger:
         candidate = self.data["candidates"][candidate_id]
         require(candidate["disposition"] == "IMPROVEMENT_VALIDATED",
                 "unvalidated candidate cannot activate")
+        event = self.event(candidate["event"])
+        require("activate_skill" in event["packet"]["authorization"]["actions"],
+                "activation outside event authorization")
         if not load_receipt:
             return "BLOCKED: fresh Work invocation/load proof required"
         p = verify_receipt(load_receipt, key)
