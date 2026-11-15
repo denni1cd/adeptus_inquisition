@@ -10,6 +10,18 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify separate pinned baseline and unmerged candidate worktrees
+        shell: bash
+        run: |
+          git fetch origin main
+          git worktree add --detach "$RUNNER_TEMP/approved-baseline" origin/main
+          git worktree add --detach "$RUNNER_TEMP/provisional-candidate" "$GITHUB_SHA"
+          test "$(git -C "$RUNNER_TEMP/approved-baseline" rev-parse HEAD)" != "$(git -C "$RUNNER_TEMP/provisional-candidate" rev-parse HEAD)"
+          test -f "$RUNNER_TEMP/approved-baseline/LICENSE"
+          test -f "$RUNNER_TEMP/provisional-candidate/skills/adeptus-inquisition/SKILL.md"
+          python3 -c 'import hashlib,os,pathlib; p=pathlib.Path(os.environ["RUNNER_TEMP"])/"provisional-candidate/skills/adeptus-inquisition/SKILL.md"; print("PINNED_CANDIDATE_SKILL_SHA256",hashlib.sha256(p.read_bytes()).hexdigest())'
       - name: Python standard library tests
         run: python3 -m unittest discover -s tests -v
       - name: Entry point smoke check
