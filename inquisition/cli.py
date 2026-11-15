@@ -26,6 +26,8 @@ def main(argv=None):
     a.add_argument("--reformer-context-id")
     cmd("recover", "event_id", "issue_id", "receipt")
     cmd("milestone", "event_id", "inspection")
+    cmd("suspend", "event_id", "disposition", "reason", "evidence")
+    cmd("no-improvement", "event_id", "reason", "evidence")
     cmd("candidate", "event_id", "manifest")
     cmd("review", "candidate_id", "receipt")
     d = cmd("decide", "candidate_id")
@@ -51,6 +53,11 @@ def main(argv=None):
             result = ledger.resolve_recovery(args.event_id, args.issue_id, args.receipt, key)
         elif args.action == "milestone":
             result = ledger.close_milestone(args.event_id, read_json(args.inspection))
+        elif args.action == "suspend":
+            result = ledger.suspend(args.event_id, None, args.disposition,
+                                    args.reason, args.evidence)
+        elif args.action == "no-improvement":
+            result = ledger.no_improvement(args.event_id, args.reason, args.evidence)
         elif args.action == "candidate":
             result = ledger.candidate(args.event_id, read_json(args.manifest))
         elif args.action == "review":
