@@ -22,6 +22,8 @@ def main(argv=None):
     cmd("finding", "event_id", "finding")
     a = cmd("attempt", "event_id", "issue_id", "hypothesis", "evidence")
     a.add_argument("--outcome", choices=["FAILED", "PENDING"], default="FAILED")
+    a.add_argument("--reformer-invocation-id")
+    a.add_argument("--reformer-context-id")
     cmd("recover", "event_id", "issue_id", "receipt")
     cmd("milestone", "event_id", "inspection")
     cmd("candidate", "event_id", "manifest")
@@ -30,8 +32,7 @@ def main(argv=None):
     d.add_argument("--pr-url")
     d.add_argument("--approval", help="JSON file containing explicit, scoped Emperor approval")
     a = cmd("activate", "candidate_id")
-    a.add_argument("--observed-hash")
-    a.add_argument("--invocation-evidence")
+    a.add_argument("--receipt", help="signed trusted fresh-Work loader attestation")
     cmd("rollback", "repository")
     cmd("show")
     args = p.parse_args(argv)
@@ -44,7 +45,8 @@ def main(argv=None):
             result = ledger.record_finding(args.event_id, read_json(args.finding))
         elif args.action == "attempt":
             result = ledger.attempt(args.event_id, args.issue_id, args.hypothesis,
-                                    args.evidence, args.outcome)
+                                    args.evidence, args.outcome,
+                                    args.reformer_invocation_id, args.reformer_context_id)
         elif args.action == "recover":
             result = ledger.resolve_recovery(args.event_id, args.issue_id, args.receipt, key)
         elif args.action == "milestone":
@@ -55,10 +57,10 @@ def main(argv=None):
             result = ledger.review(args.candidate_id, read_json(args.receipt), key)
         elif args.action == "decide":
             approval = read_json(args.approval) if args.approval else None
-            result = ledger.decide(args.candidate_id, args.pr_url, approval)
+            result = ledger.decide(args.candidate_id, args.pr_url, approval, key)
         elif args.action == "activate":
-            result = ledger.activate(args.candidate_id, args.observed_hash,
-                                     args.invocation_evidence)
+            result = ledger.activate(args.candidate_id,
+                                     read_json(args.receipt) if args.receipt else None, key)
         elif args.action == "rollback":
             result = ledger.rollback(args.repository)
         else:
