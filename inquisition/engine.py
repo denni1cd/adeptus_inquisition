@@ -104,7 +104,7 @@ class Ledger:
             require(all(issue.get(k) for k in ("id", "scope", "root_cause", "root_key")),
                     "issue requires id, scope, root_cause, and root_key")
             # Root fingerprint survives a renamed issue and persists across event packages.
-            key = digest([normalize(issue["scope"]), normalize(issue["root_cause"])])[:24]
+            key = digest(normalize(issue["root_cause"]))[:24]
             root_id = "ROOT-" + key
             if root_id not in self.data["roots"]:
                 self.data["roots"][root_id] = {
@@ -137,10 +137,14 @@ class Ledger:
         event["findings"].append(finding)
         self.save("finding", {"event": event_id, "finding": finding})
 
-    def attempt(self, event_id, issue_id, hypothesis, evidence, outcome="FAILED"):
+    def attempt(self, event_id, issue_id, hypothesis, evidence, outcome="FAILED",
+                reformer_invocation_id=None, reformer_context_id=None):
         require(outcome in {"FAILED", "PENDING"}, "outcome must be FAILED or PENDING")
         require(len(normalize(hypothesis)) >= 12, "meaningful corrective hypothesis required")
         require(bool(evidence), "attempt evidence reference required")
+        if outcome == "PENDING":
+            require(reformer_invocation_id and reformer_context_id,
+                    "pending repair needs attributed Reformer invocation and context")
         event = self.event(event_id)
         require(event["disposition"] == "PAUSED", "event already disposed")
         root = self.root_for_issue(event_id, issue_id)
@@ -152,7 +156,9 @@ class Ledger:
         n = len(root["attempts"]) + 1
         item = {"attempt": n, "event": event_id, "issue": issue_id,
                 "hypothesis": hypothesis, "hypothesis_key": normalized,
-                "evidence": evidence, "outcome": outcome}
+                "evidence": evidence, "outcome": outcome,
+                "reformer_invocation_id": reformer_invocation_id,
+                "reformer_context_id": reformer_context_id}
         root["attempts"].append(item)
         if n == MAX_ATTEMPTS and outcome == "FAILED":
             root["status"] = "ESCALATED"
@@ -172,7 +178,8 @@ class Ledger:
                 "evaluator verified a different attempt")
         require(payload["verdict"] == "PASS" and payload.get("checks"),
                 "no independent positive execution evidence")
-        require(payload["invocation_id"] != attempt.get("reformer_invocation_id"),
+        require(payload["invocation_id"] != attempt.get("reformer_invocation_id") and
+                payload["context_id"] != attempt.get("reformer_context_id"),
                 "self evaluation prohibited")
         attempt["outcome"] = "RECOVERED"
         attempt["evaluator"] = payload
@@ -199,7 +206,7 @@ class Ledger:
         mandatory = ["candidate_id", "repository", "baseline_commit", "candidate_commit",
                      "content_sha256", "changed_paths", "impact_tags", "hypothesis",
                      "baseline_checks", "candidate_checks", "regression_checks",
-                     "holdout_checks", "proposer_invocation_id", "criteria_hash"]
+                     "holdout_checks", "proposer_invocation_id", "proposer_context_id", "criteria_hash"]
         require(all(k in manifest for k in mandatory), "incomplete candidate manifest")
         require(manifest["criteria_hash"] == event["criteria_hash"],
                 "candidate must not redefine acceptance criteria")
@@ -237,7 +244,8 @@ class Ledger:
         p = verify_receipt(receipt, key)
         require(p["subject"] == candidate_id, "review is for another candidate")
         require(p["role"] in {"adversary", "evaluator"}, "invalid review role")
-        require(p["invocation_id"] != candidate["manifest"]["proposer_invocation_id"],
+        require(p["invocation_id"] != candidate["manifest"]["proposer_invocation_id"] and
+                p["context_id"] != candidate["manifest"]["proposer_context_id"],
                 "author may not review own candidate")
         require(p["role"] not in candidate["reviews"], "role already reviewed")
         if candidate["reviews"]:
@@ -257,7 +265,7 @@ class Ledger:
                              "invocation": p["invocation_id"]})
         return p
 
-    def decide(self, candidate_id, pr_url=None, emperor_approval=None):
+    def decide(self, candidate_id, pr_url=None, emperor_approval=None, key=None):
         candidate = self.data["candidates"][candidate_id]
         reviews = candidate["reviews"]
         require("adversary" in reviews and "evaluator" in reviews,
@@ -277,10 +285,11 @@ class Ledger:
             require(pr_url and pr_url.startswith("https://github.com/") and "/pull/" in pr_url,
                     "major candidate requires recorded GitHub PR")
         if classification == "PROTECTED":
-            require(emperor_approval and emperor_approval.get("explicit") is True and
-                    emperor_approval.get("scope") == candidate_id and
-                    emperor_approval.get("evidence"),
-                    "BLOCKED: protected safeguards require explicit Emperor approval")
+            require(emperor_approval, "BLOCKED: explicit Emperor approval absent")
+            a = verify_receipt(emperor_approval, key)
+            require(a["role"] == "emperor-approval" and a["subject"] == candidate_id and
+                    a["verdict"] == "PASS" and a.get("explicit") is True,
+                    "BLOCKED: protected safeguards require trusted explicit Emperor approval")
         candidate["disposition"] = "IMPROVEMENT_VALIDATED"
         candidate["pr_url"] = pr_url
         candidate["emperor_approval"] = emperor_approval
@@ -289,14 +298,18 @@ class Ledger:
                                  "pr": pr_url})
         return candidate["disposition"]
 
-    def activate(self, candidate_id, observed_hash=None, invocation_evidence=None):
+    def activate(self, candidate_id, load_receipt=None, key=None):
         candidate = self.data["candidates"][candidate_id]
         require(candidate["disposition"] == "IMPROVEMENT_VALIDATED",
                 "unvalidated candidate cannot activate")
-        if not observed_hash or not invocation_evidence:
+        if not load_receipt:
             return "BLOCKED: fresh Work invocation/load proof required"
-        require(observed_hash == candidate["manifest"]["content_sha256"],
-                "runtime loaded a different skill hash")
+        p = verify_receipt(load_receipt, key)
+        require(p["role"] == "loader" and p["subject"] == candidate_id and
+                p["verdict"] == "PASS", "trusted runtime loader attestation required")
+        require(p.get("content_sha256") == candidate["manifest"]["content_sha256"] and
+                p.get("loaded_commit") == candidate["manifest"]["candidate_commit"],
+                "runtime loaded a different candidate commit or skill hash")
         repo = candidate["manifest"]["repository"]
         prior = self.data["active"].get(repo, {
             "commit": candidate["manifest"]["baseline_commit"],
@@ -305,9 +318,9 @@ class Ledger:
         })
         self.data["active"][repo] = {
             "commit": candidate["manifest"]["candidate_commit"],
-            "content_sha256": observed_hash, "kind": "VALIDATED_LOCAL",
+            "content_sha256": p["content_sha256"], "kind": "VALIDATED_LOCAL",
             "candidate_id": candidate_id, "previous": prior,
-            "load_evidence": invocation_evidence
+            "load_evidence": p["tool_trace"]
         }
         candidate["activation"] = "ACTIVE_PROVISIONAL"
         self.save("activate", {"candidate": candidate_id, "previous": prior})
