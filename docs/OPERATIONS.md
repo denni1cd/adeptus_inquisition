@@ -57,3 +57,6 @@ If recovery succeeds but no reusable weakness is substantiated, retain the RECOV
     python3 -m inquisition.cli --home .adeptus_inquisition no-improvement --event-id evt-failure --reason "Application-specific defect only" --evidence logs/regression-evidence.json
 
 Both decisions persist in the event ledger; the skill must not treat a successful recovery as proof of a reusable improvement.
+
+## Optional offline Vally evaluation
+See docs/VALLY.md for `python3 -m inquisition.evaluation.cli export-atif`, `grade`, and `compare`. This addition grades recorded trajectories without a Copilot executor, keeps provenance and capture gaps explicit, and produces advisory comparisons only. It does not satisfy the native Work reviewer/loader receipts required for recovery, validation or activation. The existing approval and recovery controls remain authoritative.
