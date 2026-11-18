@@ -26,3 +26,26 @@ jobs:
         run: python3 -m unittest discover -s tests -v
       - name: Entry point smoke check
         run: python3 -m inquisition.cli --help
+  offline-vally:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install offline Vally CLI (no Copilot invocation)
+        run: npm install --global @microsoft/vally-cli@0.21.0
+      - name: Lint offline branch profiles
+        run: |
+          for profile in evals/*/eval.yaml; do vally lint --eval-spec "$profile"; done
+      - name: Export synthetic fixture and run an actual offline grade
+        run: |
+          python3 -m inquisition.evaluation.cli export-atif --input fixtures/adeptus_run_sample.json --atif "$RUNNER_TEMP/run.atif.json" --provenance "$RUNNER_TEMP/run.provenance.json"
+          python3 -m inquisition.evaluation.cli grade --atif "$RUNNER_TEMP/run.atif.json" --profile evals/necroneerium/eval.yaml --stimulus recorded-branch-run --output "$RUNNER_TEMP/grade.jsonl"
+          test -s "$RUNNER_TEMP/grade.jsonl"
+      - name: Compare synthetic paired execution evidence (advisory only)
+        run: |
+          python3 -m inquisition.evaluation.cli compare --input fixtures/paired_comparison_sample.json --output "$RUNNER_TEMP/comparison.json"
+          python3 -c 'import json,os,pathlib; d=json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"comparison.json").read_text()); assert d["approval"] is False and d["status"]=="SUPPORTED_FOR_INDEPENDENT_REVIEW"'
