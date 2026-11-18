@@ -1,0 +1,11 @@
+name: necroneerium-recorded-process
+description: Deterministic offline trace checks only; not a replacement for Shade.
+version: "1.1"
+stimuli:
+  - name: recorded-branch-run
+    prompt: "Grade an externally recorded Necroneerium execution."
+    graders:
+      - type: exit-success
+      - type: tool-calls
+        config:
+          required: ["bash"]
