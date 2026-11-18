@@ -1,0 +1,8 @@
+name: factorium-recorded-process
+description: Offline trace checks; art/dialogue quality requires independent review.
+version: "1.1"
+stimuli:
+  - name: recorded-branch-run
+    prompt: "Grade an externally recorded Factorium execution."
+    graders:
+      - type: exit-success
