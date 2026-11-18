@@ -26,3 +26,6 @@ Install the directory skills/adeptus-inquisition/ using your Work environment's 
 The offline gate tests execute real Python behavior and retry/version decisions, but **do not create real native Work subagents**. A Work-native delegation/audit bridge and fresh-agent skill loader probe must be validated in a separate actual Work run. Until then, required independent-agent acceptance is BLOCKED and the skill is not production-ready for autonomous adoption. Signatures from a unit test are not evidence of independent agents.
 
 No other Adeptus repository was modified.
+
+## Optional Vally offline process evaluation (V1.1)
+An isolated evaluation extension supports recorded Adeptus execution evidence -> ATIF + provenance sidecar -> offline `vally grade` -> conservative paired workflow comparison. It does **not** require Copilot or run the default Vally executor. Install Vally separately only when grading is needed (Node 22.15+ and `npm install -g @microsoft/vally-cli`). Start with `docs/VALLY.md`; the fixtures are synthetic examples, **not** evidence that a real Work run was observed or improved. V1 signed delegation/activation gates are deliberately unchanged pending a separately authorized provenance bridge.
