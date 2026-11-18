@@ -1,0 +1,46 @@
+{
+  "schema_version": "ADEPTUS-RUN-v1",
+  "run_id": "synthetic-necro-001",
+  "branch": "necroneerium",
+  "version": "fixture-only",
+  "task": "Synthetic sample of a completed Necroneerium execution",
+  "capture": {
+    "agent_steps": false,
+    "tool_results": true,
+    "subagent_events": false,
+    "timing": false,
+    "token_usage": false
+  },
+  "events": [
+    {
+      "source": "user",
+      "message": "Implement requested change with tests.",
+      "source_ref": "fixtures/test-input/user"
+    },
+    {
+      "source": "agent",
+      "message": "Executed the tests and recorded the result.",
+      "source_ref": "fixtures/test-input/agent-and-tool",
+      "tool_calls": [
+        {
+          "tool_call_id": "call-1",
+          "function_name": "bash",
+          "arguments": {
+            "command": "python -m unittest"
+          }
+        }
+      ],
+      "tool_results": [
+        {
+          "source_call_id": "call-1",
+          "content": "Tests passed."
+        }
+      ]
+    },
+    {
+      "source": "agent",
+      "message": "Shade review accepted the fixture change.",
+      "source_ref": "fixtures/test-input/shade-summary"
+    }
+  ]
+}
