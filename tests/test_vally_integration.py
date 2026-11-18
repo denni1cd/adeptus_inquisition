@@ -9,6 +9,8 @@ from unittest.mock import patch, Mock
 from inquisition.evaluation.atif_adapter import EvidenceError, adapt, export
 from inquisition.evaluation.comparison import compare
 from inquisition.evaluation.vally_backend import grade, preflight_spec
+from inquisition.evaluation.ledger_bridge import attach
+from inquisition.engine import Ledger
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -181,6 +183,48 @@ class BackendTests(unittest.TestCase):
             self.assertNotIn("eval", run.call_args.args[0])
             self.assertNotIn("--require-pass", run.call_args.args[0])
             self.assertTrue((Path(tmp) / "grade.jsonl").exists())
+
+
+class LedgerAttachmentTests(unittest.TestCase):
+    def _artifacts(self, home):
+        record = json.loads((ROOT / "fixtures/adeptus_run_sample.json").read_text())
+        source = Path(home) / "run.json"
+        source.write_text(json.dumps(record))
+        provenance = Path(home) / "provenance.json"
+        export(source, Path(home) / "atif.json", provenance)
+        grade_path = Path(home) / "grade.jsonl"
+        grade_path.write_text('{"type":"trial-result","passed":true}\\n')
+        comparison_path = Path(home) / "comparison.json"
+        comparison_path.write_text(json.dumps(compare(plan())))
+        return provenance, grade_path, comparison_path
+
+    def test_attaches_only_as_unapproved_finding(self):
+        with tempfile.TemporaryDirectory() as home:
+            ledger = Ledger(home)
+            package = json.loads((ROOT / "fixtures/milestone.json").read_text())
+            ledger.ingest(package)
+            prov, grade_file, comparison = self._artifacts(home)
+            result = attach(home, package["event_id"], prov, grade_file, comparison)
+            self.assertEqual(result["state"], "EVALUATION_ATTACHED_NOT_APPROVED")
+            state = Ledger(home).data
+            self.assertEqual(len(state["events"][package["event_id"]]["findings"]), 1)
+            self.assertEqual(state["events"][package["event_id"]]["disposition"], "PAUSED")
+            self.assertEqual(state["candidates"], {})
+            self.assertEqual(state["events"][package["event_id"]]["findings"][0]
+                             ["authorization_effect"], "NONE")
+
+    def test_rejects_claimed_approval_and_missing_artifacts(self):
+        with tempfile.TemporaryDirectory() as home:
+            prov, grade_file, comparison = self._artifacts(home)
+            bad = json.loads(comparison.read_text())
+            bad["approval"] = True
+            comparison.write_text(json.dumps(bad))
+            with self.assertRaises(EvidenceError):
+                attach(home, "missing", prov, grade_file, comparison)
+            comparison.write_text(json.dumps(compare(plan())))
+            grade_file.unlink()
+            with self.assertRaises(EvidenceError):
+                attach(home, "missing", prov, grade_file, comparison)
 
 
 if __name__ == "__main__":
