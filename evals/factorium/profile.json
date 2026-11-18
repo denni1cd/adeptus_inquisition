@@ -1,0 +1,15 @@
+{
+  "branch": "factorium",
+  "mandatory_checks": [
+    "original_acceptance",
+    "regressions_clear",
+    "independent_review"
+  ],
+  "metric_directions": {
+    "feasibility_rejections": "lower",
+    "repeat_file_reads": "lower",
+    "rework_cycles": "lower",
+    "execution_minutes": "lower"
+  },
+  "notes": "Subjective art/dialogue quality requires independent assessment; do not optimize throughput at quality expense."
+}

@@ -32,6 +32,14 @@ Preserve boundaries:
 9. GitHub is authoritative for reusable skill source. Record repo, baseline/candidate commit hashes, content digest, scope, PR, review, approval and local activation state. A changed file is not proof that an already-running Work agent reloaded it. Activate only after verifying a fresh invocation loaded the pinned candidate. Rollback changes the pin used by NEW executions to the prior approved version; running jobs remain on their original pin.
 10. Release a clean milestone with NO_CHANGE_JUSTIFIED when its evidence exposes no material defect, not fabricated improvements. For recovery return to the originating branch and Strategerium Rules Lawyer/Shade gates as appropriate. Issue explicit RECOVERED, IMPROVEMENT_VALIDATED, IMPROVEMENT_REJECTED, NO_CHANGE_JUSTIFIED, BLOCKED or ESCALATED with next action and evidence. Do not claim global project completion.
 
+
+## Optional offline Vally process evaluation (V1.1)
+At an existing major-milestone or terminal-failure event, investigate whether observed friction reveals a reusable branch workflow defect. For an evidenced change, compare pinned old/new workflow executions using frozen acceptance criteria, matched tasks (including holdouts), and actual independent review. Do not create fictitious baseline trials or imply that a single successful repair proves process improvement.
+
+The optional Vally adapter under inquisition/evaluation exports recorded Adeptus events to ATIF, preserving source references and coverage gaps in a separate provenance file. Use **vally grade** on saved trajectories with curated deterministic evals in evals/, not **vally eval** or the Copilot SDK. Vally is optional and its absence must not prevent investigation or the original gates. An offline grade exit 0 only means that grading executed, NOT that a quality gate passed or that a run was independently authenticated. Compare quality gates before efficiency, reject regressions, and withhold any claim of observed metrics when evidence capture is incomplete. Read docs/VALLY.md before use.
+
+Vally results are evidence for the existing Investigator, Reformer, Adversary and Evaluator roles. They are NOT signed native delegation receipts, proof of reviewer independence, permission to activate, or a substitute for Strategerium's Rules Lawyer, Necroneerium's Shade, or Factorium's required feasibility and quality reviewers. All existing authorization, versioning, retry, and protected-governance rules remain unchanged.
+
 ## Native delegated responsibilities
 - Investigator: diagnose causes and alternatives with original objective and failure evidence.
 - Reformer: make bounded reversible changes, provide exact changed files, hypothesis, and results; never certify own change.

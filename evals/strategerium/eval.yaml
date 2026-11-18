@@ -1,0 +1,8 @@
+name: strategerium-recorded-process
+description: Offline trace checks; Rules Lawyer and approved acceptance remain authoritative.
+version: "1.1"
+stimuli:
+  - name: recorded-branch-run
+    prompt: "Grade an externally recorded Strategerium execution."
+    graders:
+      - type: exit-success

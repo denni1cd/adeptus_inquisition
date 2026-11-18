@@ -1,0 +1,15 @@
+{
+  "branch": "strategerium",
+  "mandatory_checks": [
+    "original_acceptance",
+    "regressions_clear",
+    "independent_review"
+  ],
+  "metric_directions": {
+    "contract_revisions": "lower",
+    "rules_lawyer_rejections": "lower",
+    "downstream_ambiguities": "lower",
+    "execution_minutes": "lower"
+  },
+  "notes": "Rules Lawyer remains independent; faster contract approval is not correctness."
+}
