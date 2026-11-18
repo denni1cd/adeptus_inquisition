@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .atif_adapter import EvidenceError, export
 from .comparison import compare
+from .ledger_bridge import attach
 from .vally_backend import grade
 
 
@@ -27,12 +28,21 @@ def main(argv=None):
     p = actions.add_parser("compare", help="Compare paired measured workflows, advisory only")
     p.add_argument("--input", required=True)
     p.add_argument("--output", required=True)
+    p = actions.add_parser("attach", help="Attach evidence to paused event without approval")
+    p.add_argument("--home", required=True)
+    p.add_argument("--event-id", required=True)
+    p.add_argument("--provenance", required=True)
+    p.add_argument("--grade", required=True)
+    p.add_argument("--comparison", required=True)
     args = parser.parse_args(argv)
     try:
         if args.action == "export-atif":
             result = export(args.input, args.atif, args.provenance)
         elif args.action == "grade":
             result = grade(args.atif, args.profile, args.output, args.stimulus, args.vally)
+        elif args.action == "attach":
+            result = attach(args.home, args.event_id, args.provenance,
+                            args.grade, args.comparison)
         else:
             result = compare(json.loads(Path(args.input).read_text(encoding="utf-8")))
             out = Path(args.output)
