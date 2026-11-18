@@ -78,8 +78,8 @@ def compare(plan):
     gate_names = ("original_acceptance", "regressions_clear", "independent_review")
     baseline_ok, candidate_ok = {}, {}
     for case in original:
-        baseline_ok[case] = all(_check(original[case], name) for name in gate_names)
-        candidate_ok[case] = all(_check(updated[case], name) for name in gate_names)
+        baseline_ok[case] = all([_check(original[case], name) for name in gate_names])
+        candidate_ok[case] = all([_check(updated[case], name) for name in gate_names])
     damaged = [case for case in original if not candidate_ok[case]]
     if damaged:
         return {"status": "REJECT_CANDIDATE", "reason": "candidate fails mandatory gates",
