@@ -1,0 +1,15 @@
+{
+  "branch": "necroneerium",
+  "mandatory_checks": [
+    "original_acceptance",
+    "regressions_clear",
+    "independent_review"
+  ],
+  "metric_directions": {
+    "shade_rejections": "lower",
+    "repair_cycles": "lower",
+    "integration_defects": "lower",
+    "execution_minutes": "lower"
+  },
+  "notes": "Never lower Shade standards to reduce rejections; preserve frozen original acceptance."
+}
