@@ -11,6 +11,8 @@ A standalone, event-triggered ChatGPT Work skill for failure recovery and eviden
 
 ## Local standalone smoke tests
 
+Use `python3` on macOS/Linux. In Windows PowerShell, substitute `python` if `python3` resolves to the Microsoft Store app execution alias.
+
     python3 -m unittest discover -s tests -v
     python3 -m inquisition.cli --home .adeptus_inquisition ingest --package fixtures/milestone.json
     python3 -m inquisition.cli --home .adeptus_inquisition milestone --event-id evt-clean --inspection fixtures/clean_inspection.json

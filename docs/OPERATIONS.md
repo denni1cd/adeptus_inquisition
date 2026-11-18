@@ -3,6 +3,8 @@
 ## Installation / loading
 Clone a **pinned** commit of denni1cd/adeptus_inquisition and supply the folder skills/adeptus-inquisition to the available ChatGPT Work skill installation surface. Work skill import behavior must be verified in that environment; GitHub presence and editing a local SKILL.md are not automatic live activation. The separate CLI runs from repository root with Python 3.10+ and only the standard library.
 
+The examples below use `python3`. In Windows PowerShell, substitute `python` if `python3` resolves to the Microsoft Store app execution alias.
+
 ## Event, investigation and recovery
 Every event must include a stable event_id, trigger (TERMINAL_FAILURE or MAJOR_MILESTONE), original objective and constraints, frozen approved acceptance criteria, milestone, active branch and commit, artifacts and actual tests, reviews, stable issue/root identifiers and branch retry history, permitted repos/actions, and an approved baseline skill commit/hash. See fixtures/failure.json and schemas/event.schema.json.
 
