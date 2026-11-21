@@ -5,6 +5,8 @@ import hmac
 import importlib.util
 import json
 import tempfile
+import os
+from unittest.mock import patch
 import unittest
 from pathlib import Path
 
@@ -311,6 +313,31 @@ class LedgerTests(unittest.TestCase):
             self.ledger.candidate("evt-clean", manifest(
                 self.ledger.event("evt-clean")))
 
+    def test_legacy_positive_receipts_do_not_bypass_scope_audit(self):
+        self.ledger.ingest(self.failure)
+        self.ledger.candidate("evt-failure", manifest(self.ledger.event("evt-failure")))
+        self.ledger.review("candidate-1", receipt("adversary", "candidate-1", "old-adv"), TEST_KEY)
+        self.ledger.review("candidate-1", receipt("evaluator", "candidate-1", "old-eval", checks=checks()), TEST_KEY)
+        with self.assertRaises(GateError):
+            self.ledger.decide("candidate-1")
+
+    def test_independent_operator_pins_authorize_exact_audited_payloads_without_hmac(self):
+        self.ledger.ingest(self.failure)
+        c, audit = complete_scope(self.ledger, "evt-failure", manifest(self.ledger.event("evt-failure")))
+        adv = receipt("adversary", "candidate-1", "operator-adv", audit_digest=audit)["payload"]
+        ev = receipt("evaluator", "candidate-1", "operator-eval", checks=checks(), audit_digest=audit)["payload"]
+        load = receipt("loader", "candidate-1", "operator-load", audit_digest=audit)["payload"]
+        load.update(content_sha256="d"*64, loaded_commit="c"*40)
+        pins = Path(self.home) / "fixture-operator-pins.json"
+        pins.write_text(json.dumps({"schema": "INQUISITION-OPERATOR-PINS-v1",
+                                    "approved_payload_sha256": [digest(p) for p in (adv, ev, load)]}))
+        with patch.dict(os.environ, {"INQUISITION_OPERATOR_TRUST_STORE": str(pins)}):
+            self.ledger.review("candidate-1", {"payload": adv}, None)
+            self.ledger.review("candidate-1", {"payload": ev}, None)
+            self.assertEqual(self.ledger.decide("candidate-1"), "IMPROVEMENT_VALIDATED")
+            with self.assertRaises(GateError):
+                self.ledger.activate("candidate-1", {"payload": dict(load, loaded_commit="a"*40)}, None)
+            self.assertEqual(self.ledger.activate("candidate-1", {"payload": load}, None), "ACTIVE_PROVISIONAL")
 
 
 if __name__ == "__main__":
