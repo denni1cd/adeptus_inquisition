@@ -1,7 +1,6 @@
 """Scope policy and prospective, case-level comparison; never authorizes adoption."""
 from __future__ import annotations
 import re
-from statistics import mean
 from .atif_adapter import EvidenceError
 
 SCOPES = ("GENERAL", "DOMAIN", "TASK")
@@ -70,7 +69,7 @@ def validate_plan(plan, actual):
     for row in plan["cases"]:
         require(isinstance(row, dict), "invalid case")
         cid, category = row.get("case_id"), row.get("category")
-        require(nonempty(cid) and cid not in cases, "duplicate or blank case identity")
+        require(nonempty(cid) and ":" not in cid and cid not in cases, "duplicate or blank case identity")
         require(sha(row.get("task_sha256")) and row["task_sha256"] not in hashes,
                 "distinct task content hashes required; repetitions are not tasks")
         require(sha(row.get("criteria_sha256")) and nonempty(row.get("family"))
@@ -131,6 +130,13 @@ def compare_scoped(plan, actual_scope, baseline_commit, candidate_commit, trials
                 "workflow pin mismatch")
         require(nonempty(row.get("run_ref")) and sha(row.get("run_sha256"))
                 and sha(row.get("environment_sha256")), "run, digest and environment required")
+        # Vally is optional, but any use must disclose observed trace coverage.
+        trace = row.get("trace")
+        require(isinstance(trace, dict) and trace.get("coverage") in ("PARTIAL", "DECLARED_COMPLETE_NOT_AUTHENTICATED", "UNAVAILABLE")
+                and nonempty(trace.get("evidence_ref")), "trace coverage and evidence required")
+        if trace.get("vally_grade_ref"):
+            require(trace["coverage"] != "UNAVAILABLE" and nonempty(trace["vally_grade_ref"]),
+                    "Vally grade requires recorded trajectory evidence")
         checks = row.get("checks", {})
         for check in QUALITY:
             val = checks.get(check, {})
