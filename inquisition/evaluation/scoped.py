@@ -99,6 +99,7 @@ def validate_plan(plan, actual):
     measures = plan.get("metrics")
     require(isinstance(measures, dict), "frozen metrics object required (may be empty)")
     for name, m in measures.items():
+        require(nonempty(name) and name not in QUALITY, "ambiguous metric identity")
         require(isinstance(m, dict) and m.get("direction") in ("lower", "higher")
                 and m.get("kind") in ("quality", "efficiency")
                 and type(m.get("tolerance")) in (float, int)
@@ -157,6 +158,7 @@ def compare_scoped(plan, actual_scope, baseline_commit, candidate_commit, trials
                     "missing/incomplete metric: " + name)
         rows[key] = row
     require(len(rows) == len(cases) * plan["repetitions"] * 2, "matched experiments incomplete")
+    require(len({r["run_ref"] for r in rows.values()}) == len(rows), "duplicate run reference")
     require(len({r["run_sha256"] for r in rows.values()}) == len(rows),
             "duplicate run artifact cannot count as another trial")
     failures, gains, tradeoffs, pairs = [], [], [], []
