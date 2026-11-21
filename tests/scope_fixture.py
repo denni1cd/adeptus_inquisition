@@ -14,6 +14,7 @@ def plan():
         "protocol_sha256": digest("synthetic protocol"),
         "selection_evidence": "fixture-only independent selection",
         "repetitions": 2,
+        "primary_outcome": "repair_cycles",
         "cases": [
             {"case_id": cid, "category": cat, "family": family, "in_scope": True,
              "task_sha256": digest("task-" + cid), "criteria_sha256": digest("criteria-" + cid),
@@ -57,6 +58,7 @@ def packet(ledger, stage, payload, index=0, verdict="PASS", objections=None, cid
             "objections": objections or [],
             "basis": {"event_packet_hash": ledger.event(c["event_id"])["packet_hash"],
                       "prior": {s: digest(c["current"][s]) for s in audits.STAGES[:i]},
+                      "authors": [{"invocation_id": "author-" + stage, "context_id": "author-context-" + stage}],
                       **payload}}
 
 
