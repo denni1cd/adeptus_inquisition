@@ -18,7 +18,7 @@ QUESTIONS = {
 
 def start(ledger, event_id, campaign_id, authors):
     event = ledger.event(event_id)
-    require(event["disposition"] == "PAUSED", "audit campaign requires open event")
+    require(event["disposition"] in ("PAUSED", "RECOVERED"), "audit campaign requires open event")
     require("propose_skill_change" in event["packet"]["authorization"]["actions"],
             "audit outside event authorization")
     require(nonempty(campaign_id) and isinstance(authors, list) and bool(authors),
@@ -47,9 +47,9 @@ def get(ledger, cid):
 
 
 def record(ledger, cid, packet):
-    c = get(ledger, cid)
+    c = copy.deepcopy(get(ledger, cid))
     require(c["status"] not in ("REJECTED", "ESCALATED"), "campaign is terminal")
-    require(ledger.event(c["event_id"])["disposition"] == "PAUSED",
+    require(ledger.event(c["event_id"])["disposition"] in ("PAUSED", "RECOVERED"),
             "campaign event closed")
     stage = packet.get("stage")
     require(stage in STAGES, "unknown audit stage")
@@ -142,6 +142,7 @@ def record(ledger, cid, packet):
                    "ESCALATED" if verdict != "PASS" and c["revisions"][stage] >= MAX_REVISIONS else
                    "READY_FOR_TRUSTED_REVIEW" if stage == "final" and verdict == "PASS" else
                    "EXPERIMENTAL")
+    ledger.data["scope_audits"][cid] = c
     ledger.save("scope_audit_checkpoint", {"campaign": cid, "stage": stage, "verdict": verdict,
                                            "status": c["status"]})
     return c
