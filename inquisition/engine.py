@@ -298,13 +298,14 @@ class Ledger:
     def review(self, candidate_id, receipt, key):
         candidate = self.data["candidates"].get(candidate_id)
         require(candidate is not None, "unknown candidate")
+        require(candidate["disposition"] == "PENDING", "candidate already decided")
         p = verify_receipt(receipt, key)
         require(p["subject"] == candidate_id, "review is for another candidate")
         require(p["role"] in {"adversary", "evaluator"}, "invalid review role")
         require(p["invocation_id"] != candidate["manifest"]["proposer_invocation_id"] and
                 p["context_id"] != candidate["manifest"]["proposer_context_id"],
                 "author may not review own candidate")
-        require(p["role"] not in candidate["reviews"], "role already reviewed")
+        require(p["role"] not in candidate["reviews"], "role already reviewed; new candidate required for new formal reviews")
         if candidate["reviews"]:
             other = next(iter(candidate["reviews"].values()))
             require(p["invocation_id"] != other["invocation_id"], "reviewers share invocation")
@@ -324,6 +325,7 @@ class Ledger:
 
     def decide(self, candidate_id, pr_url=None, emperor_approval=None, key=None):
         candidate = self.data["candidates"][candidate_id]
+        require(candidate["disposition"] == "PENDING", "candidate already decided")
         reviews = candidate["reviews"]
         require("adversary" in reviews and "evaluator" in reviews,
                 "BLOCKED: genuine independent adversary and evaluator receipts required")
@@ -353,7 +355,7 @@ class Ledger:
             require(emperor_approval, "BLOCKED: explicit Emperor approval absent")
             a = verify_receipt(emperor_approval, key)
             require(a["role"] == "emperor-approval" and a["subject"] == candidate_id and
-                    a["verdict"] == "PASS" and a.get("explicit") is True,
+                    a["verdict"] == "PASS" and a.get("explicit") is True and a.get("audit_digest") == audited,
                     "BLOCKED: protected safeguards require trusted explicit Emperor approval")
         candidate["audit_digest"] = audited
         candidate["disposition"] = "IMPROVEMENT_VALIDATED"
@@ -379,7 +381,8 @@ class Ledger:
             return "BLOCKED: fresh target-runtime invocation/load proof required"
         p = verify_receipt(load_receipt, key)
         require(p["role"] == "loader" and p["subject"] == candidate_id and
-                p["verdict"] == "PASS", "trusted runtime loader attestation required")
+                p["verdict"] == "PASS" and p.get("audit_digest") == candidate["audit_digest"],
+                "trusted runtime loader attestation required for exact audited campaign")
         require(p.get("content_sha256") == candidate["manifest"]["content_sha256"] and
                 p.get("loaded_commit") == candidate["manifest"]["candidate_commit"],
                 "runtime loaded a different candidate commit or skill hash")
