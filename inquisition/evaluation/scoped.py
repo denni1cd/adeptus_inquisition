@@ -105,6 +105,8 @@ def validate_plan(plan, actual):
                 and type(m.get("tolerance")) in (float, int)
                 and 0 <= m["tolerance"] < 1e15,
                 "metric direction, kind and materiality tolerance required: " + name)
+    require(plan.get("primary_outcome") in set(QUALITY) | set(measures),
+            "predeclare a primary improvement outcome")
     return cases
 
 
@@ -186,25 +188,25 @@ def compare_scoped(plan, actual_scope, baseline_commit, candidate_commit, trials
             pairs.append({"case_id": cid, "repetition": rep, "metrics": deltas})
     # Reproducibility requires improvement in every repetition for at least two
     # distinct in-scope cases (not merely a single originating task).
-    reproducible = []
-    for cid, case in cases.items():
-        if not case["in_scope"]:
-            continue
-        repeated = [set(g.split(":", 2)[2] for g in gains if g.startswith(f"{cid}:{r}:"))
-                    for r in range(1, plan["repetitions"] + 1)]
-        if set.intersection(*repeated):
-            reproducible.append(cid)
+    primary = plan["primary_outcome"]
+    reproducible = [cid for cid, case in cases.items() if case["in_scope"] and
+                    all(f"{cid}:{rep}:{primary}" in gains for rep in range(1, plan["repetitions"] + 1))]
+    origins = [cid for cid in reproducible if cases[cid]["category"] == "origin"]
+    transfer = [cid for cid in reproducible if cases[cid]["category"] in ("transfer", "holdout")]
+    generalizes = bool(origins and transfer)
+    if actual_scope["kind"] == "GENERAL":
+        generalizes = any(cases[o]["family"] != cases[t]["family"] for o in origins for t in transfer)
     if failures:
         status = "REJECT_CANDIDATE"
     elif tradeoffs:
         status = "TRADEOFF_REQUIRES_REVIEW"
-    elif len(reproducible) >= 2 and any(cases[c]["category"] != "origin" for c in reproducible):
+    elif generalizes:
         status = "SUPPORTED_FOR_INDEPENDENT_REVIEW"
     else:
         status = "NO_IMPROVEMENT_DEMONSTRATED"
     return {"status": status, "approval": False, "scope": actual_scope,
             "baseline_commit": baseline_commit, "candidate_commit": candidate_commit,
             "distinct_tasks": len(cases), "paired_trials": len(pairs),
-            "reproducible_cases": reproducible, "failures": failures,
+            "primary_outcome": primary, "reproducible_cases": reproducible, "failures": failures,
             "tradeoffs": tradeoffs, "pairs": pairs,
             "note": "Advisory; source authenticity and semantic coverage require separate audits."}
