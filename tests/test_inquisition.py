@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from inquisition.engine import GateError, Ledger, canonical, digest, read_json, normalize
+from scope_fixture import complete as complete_scope
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_KEY = "fixture-only-never-a-production-trust-key"
@@ -20,13 +21,15 @@ def sign(payload):
     ).hexdigest()}
 
 
-def receipt(role, subject, identity, verdict="PASS", checks=None):
+def receipt(role, subject, identity, verdict="PASS", checks=None, audit_digest=None):
     payload = {"role": role, "subject": subject, "invocation_id": "synthetic-" + identity,
                "context_id": "synthetic-context-" + identity,
                "tool_trace": "synthetic-tool-events/" + identity + ".json",
                "verdict": verdict, "evidence": "test-reports/" + identity + ".json"}
     if checks is not None:
         payload["checks"] = checks
+    if audit_digest is not None:
+        payload["audit_digest"] = audit_digest
     return sign(payload)
 
 
@@ -118,13 +121,13 @@ class LedgerTests(unittest.TestCase):
 
     def test_3_reusable_candidate_gate_with_synthetic_receipts(self):
         self.ledger.ingest(self.failure)
-        item = self.ledger.candidate("evt-failure", manifest(
+        item, audit = complete_scope(self.ledger, "evt-failure", manifest(
             self.ledger.event("evt-failure")))
         self.assertEqual(item["classification"], "MINOR")
         self.ledger.review("candidate-1", receipt("adversary", "candidate-1",
-                                                  "adversary"), TEST_KEY)
+                                                  "adversary", audit_digest=audit), TEST_KEY)
         self.ledger.review("candidate-1", receipt("evaluator", "candidate-1",
-                                                  "evaluator", checks=checks()), TEST_KEY)
+                                                  "evaluator", checks=checks(), audit_digest=audit), TEST_KEY)
         self.assertEqual(self.ledger.decide("candidate-1"), "IMPROVEMENT_VALIDATED")
 
     def test_4_bad_improvement_rejected_by_failed_regression(self):
@@ -165,19 +168,19 @@ class LedgerTests(unittest.TestCase):
 
     def test_6_major_pr_required_and_rollback_pin(self):
         self.ledger.ingest(self.failure)
-        c = self.ledger.candidate("evt-failure", manifest(
+        c, audit = complete_scope(self.ledger, "evt-failure", manifest(
             self.ledger.event("evt-failure"), tags=["agent_roles"]))
         self.assertEqual(c["classification"], "MAJOR")
         self.ledger.review("candidate-1", receipt("adversary", "candidate-1",
-                                                  "major-adversary"), TEST_KEY)
+                                                  "major-adversary", audit_digest=audit), TEST_KEY)
         self.ledger.review("candidate-1", receipt("evaluator", "candidate-1",
-                                                  "major-evaluator", checks=checks()), TEST_KEY)
+                                                  "major-evaluator", checks=checks(), audit_digest=audit), TEST_KEY)
         with self.assertRaises(GateError):
             self.ledger.decide("candidate-1")
         self.ledger.decide("candidate-1",
                            "https://github.com/denni1cd/adeptus_inquisition/pull/1")
         self.assertTrue(self.ledger.activate("candidate-1").startswith("BLOCKED"))
-        load = receipt("loader", "candidate-1", "load", checks=None)
+        load = receipt("loader", "candidate-1", "load", checks=None, audit_digest=audit)
         load["payload"]["content_sha256"] = "d" * 64
         load["payload"]["loaded_commit"] = "c" * 40
         load = sign(load["payload"])
@@ -206,18 +209,22 @@ class LedgerTests(unittest.TestCase):
 
     def test_8_protected_rule_change_requires_emperor(self):
         self.ledger.ingest(self.failure)
-        candidate = self.ledger.candidate("evt-failure", manifest(
+        candidate, audit = complete_scope(self.ledger, "evt-failure", manifest(
             self.ledger.event("evt-failure"), tags=["validation"],
             paths=["inquisition/engine.py"]))
         self.assertEqual(candidate["classification"], "PROTECTED")
         self.ledger.review("candidate-1", receipt("adversary", "candidate-1",
-                                                  "protected-adv"), TEST_KEY)
+                                                  "protected-adv", audit_digest=audit), TEST_KEY)
         self.ledger.review("candidate-1", receipt("evaluator", "candidate-1",
-                                                  "protected-eval", checks=checks()), TEST_KEY)
+                                                  "protected-eval", checks=checks(), audit_digest=audit), TEST_KEY)
         url = "https://github.com/denni1cd/adeptus_inquisition/pull/1"
         with self.assertRaises(GateError):
             self.ledger.decide("candidate-1", url)
         self.assertEqual(candidate["disposition"], "PENDING")
+        approval = receipt("emperor-approval", "candidate-1", "emperor", audit_digest=audit)
+        approval["payload"]["explicit"] = True
+        approval = sign(approval["payload"])
+        self.assertEqual(self.ledger.decide("candidate-1", url, approval, TEST_KEY), "IMPROVEMENT_VALIDATED")
 
     def test_immutable_packet_and_frozen_criteria(self):
         self.ledger.ingest(self.failure)
