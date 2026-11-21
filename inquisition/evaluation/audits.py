@@ -2,6 +2,7 @@
 from __future__ import annotations
 import copy
 from ..engine import digest, require
+from .atif_adapter import EvidenceError
 from .scoped import scope, validate_proposal, validate_plan, compare_scoped, nonempty, sha
 
 # The experimental audit comprises a preflight and a results checkpoint.
@@ -83,11 +84,21 @@ def record(ledger, cid, packet):
         require(nonempty(basis.get("finding_ref")) and sha(basis.get("finding_sha256")),
                 "frozen diagnosis artifact required")
     elif stage == "generalization":
-        validate_proposal(c["directive"], basis.get("proposal", {}))
-        require(sha(basis.get("proposal_sha256")), "frozen proposal digest required")
+        require(isinstance(basis.get("proposal"), dict) and basis.get("proposal_sha256") == digest(basis["proposal"]),
+                "proposal must bind its canonical digest")
+        try:
+            validate_proposal(c["directive"], basis["proposal"])
+        except EvidenceError:
+            if verdict == "PASS":
+                raise
     elif stage == "experiment_plan":
         actual = scope(c["current"]["generalization"]["basis"]["proposal"].get("scope"))
-        validate_plan(basis.get("plan"), actual)
+        require(isinstance(basis.get("plan"), dict), "frozen or disputed plan object required")
+        try:
+            validate_plan(basis["plan"], actual)
+        except EvidenceError:
+            if verdict == "PASS":
+                raise
     elif stage == "experimental_validity":
         candidate_id = basis.get("candidate_id")
         candidate = ledger.data["candidates"].get(candidate_id)
@@ -106,13 +117,19 @@ def record(ledger, cid, packet):
                     m["proposer_context_id"] != previous["context_id"], "candidate author reviewed campaign")
         require(packet["invocation_id"] != m["proposer_invocation_id"] and
                 packet["context_id"] != m["proposer_context_id"], "candidate author self-review")
-        result = compare_scoped(c["current"]["experiment_plan"]["basis"]["plan"],
-                                m["scope"], m["baseline_commit"], m["candidate_commit"],
-                                basis.get("trials"))
         require(basis.get("manifest_sha256") == digest(m), "review must bind candidate manifest")
-        require(basis.get("comparison") == result, "comparison must match deterministic result")
-        require(verdict != "PASS" or result["status"] == "SUPPORTED_FOR_INDEPENDENT_REVIEW",
-                "failed, weak or tradeoff comparison cannot pass final evaluation")
+        try:
+            result = compare_scoped(c["current"]["experiment_plan"]["basis"]["plan"],
+                                    m["scope"], m["baseline_commit"], m["candidate_commit"],
+                                    basis.get("trials"))
+        except EvidenceError as error:
+            require(verdict != "PASS", "incomplete/invalid experiment cannot pass: " + str(error))
+            require(basis.get("comparison") is None and nonempty(basis.get("blocked_reason")),
+                    "record invalid experiment with null comparison and explicit blocker")
+        else:
+            require(basis.get("comparison") == result, "comparison must match deterministic result")
+            require(verdict != "PASS" or result["status"] == "SUPPORTED_FOR_INDEPENDENT_REVIEW",
+                    "failed, weak or tradeoff comparison cannot pass final evaluation")
     elif stage == "final":
         previous = c["current"]["experimental_validity"]["basis"]
         require(basis.get("candidate_id") == previous["candidate_id"] and
