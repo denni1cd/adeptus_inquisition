@@ -15,8 +15,9 @@ MAJOR_TAGS = {"agent_roles", "architecture", "execution_authority", "validation"
               "recovery_policy", "approval_policy", "public_contract"}
 PROTECTED_TAGS = {"inquisition_safeguards", "inquisition_evaluation",
                   "inquisition_approval"}
-PROTECTED_PATHS = {"inquisition/engine.py", "skills/adeptus-inquisition/SKILL.md",
+PROTECTED_PATHS = {"inquisition/engine.py", "inquisition/cli.py", "skills/adeptus-inquisition/SKILL.md",
                    "schemas/event.schema.json", "schemas/receipt.schema.json"}
+PROTECTED_PREFIXES = ("inquisition/evaluation/", "skills/adeptus-inquisition/", "schemas/", "evals/")
 MAX_ATTEMPTS = 3
 
 
@@ -93,6 +94,8 @@ class Ledger:
         require(bool(package["baseline"].get("commit")), "pinned baseline required")
         require(bool(package["branch"].get("version", {}).get("commit")), "branch version required")
         require(bool(package["authorization"].get("repositories")), "authorized repositories required")
+        from .evaluation.scoped import scope
+        scope(package.get("improvement_scope"))  # absent means GENERAL
         eid = package["event_id"]
         packet_hash = digest(package)
         if eid in self.data["events"]:
@@ -264,11 +267,18 @@ class Ledger:
         require(manifest["candidate_commit"] != manifest["baseline_commit"],
                 "candidate must differ from baseline")
         require(len(manifest["content_sha256"]) == 64, "SHA-256 of candidate is required")
+        from .evaluation.scoped import scope
+        if "scope" in manifest:
+            requested, actual = scope(event["packet"].get("improvement_scope")), scope(manifest["scope"])
+            require(requested["kind"] == "GENERAL" or requested == actual,
+                    "candidate exceeds requested scope")
+            require(manifest.get("placement") == ("core" if actual["kind"] == "GENERAL" else "conditional"),
+                    "restricted candidate must use conditional guidance")
         tags = set(manifest["impact_tags"])
         paths = set(manifest["changed_paths"])
         classification = ("PROTECTED" if tags & PROTECTED_TAGS or
                           manifest["repository"].endswith("/adeptus_inquisition") and
-                          bool(paths & PROTECTED_PATHS)
+                          (bool(paths & PROTECTED_PATHS) or any(p.startswith(PROTECTED_PREFIXES) for p in paths))
                           else "MAJOR" if tags & MAJOR_TAGS else "MINOR")
         require(bool(manifest["hypothesis"]) and manifest["baseline_checks"] and
                 manifest["candidate_checks"] and manifest["regression_checks"] and
@@ -328,6 +338,10 @@ class Ledger:
                                  "adversary": adversary["verdict"],
                                  "evaluator": evaluator["verdict"]})
             return candidate["disposition"]
+        from .evaluation.audits import campaign_digest
+        audited = campaign_digest(self, candidate)
+        require(all(r.get("audit_digest") == audited for r in reviews.values()),
+                "trusted reviews must attest the exact current scope audit campaign")
         require(candidate["manifest"]["candidate_checks"] !=
                 candidate["manifest"]["baseline_checks"],
                 "no measurable demonstrated change")
@@ -341,6 +355,7 @@ class Ledger:
             require(a["role"] == "emperor-approval" and a["subject"] == candidate_id and
                     a["verdict"] == "PASS" and a.get("explicit") is True,
                     "BLOCKED: protected safeguards require trusted explicit Emperor approval")
+        candidate["audit_digest"] = audited
         candidate["disposition"] = "IMPROVEMENT_VALIDATED"
         candidate["pr_url"] = pr_url
         candidate["emperor_approval"] = emperor_approval
@@ -354,11 +369,14 @@ class Ledger:
         candidate = self.data["candidates"][candidate_id]
         require(candidate["disposition"] == "IMPROVEMENT_VALIDATED",
                 "unvalidated candidate cannot activate")
+        from .evaluation.audits import campaign_digest
+        require(candidate.get("audit_digest") == campaign_digest(self, candidate),
+                "candidate requires current audited evidence before activation")
         event = self.event(candidate["event"])
         require("activate_skill" in event["packet"]["authorization"]["actions"],
                 "activation outside event authorization")
         if not load_receipt:
-            return "BLOCKED: fresh Work invocation/load proof required"
+            return "BLOCKED: fresh target-runtime invocation/load proof required"
         p = verify_receipt(load_receipt, key)
         require(p["role"] == "loader" and p["subject"] == candidate_id and
                 p["verdict"] == "PASS", "trusted runtime loader attestation required")
@@ -395,18 +413,32 @@ class Ledger:
 
 
 def verify_receipt(receipt, key):
-    """Only a trusted dispatcher's out-of-band HMAC receipts count; no unsigned self-claims."""
-    require(bool(key), "BLOCKED: no trusted delegation receipt verifier configured")
-    require(isinstance(receipt, dict) and "signature" in receipt and "payload" in receipt,
-            "unsigned or malformed delegation receipt")
+    """Verify a signed receipt or an exact independently pinned payload digest.
+
+    The operator trust file MUST be externally provisioned and protected
+    from the candidate author and execution agents.
+    """
+    require(isinstance(receipt, dict) and isinstance(receipt.get("payload"), dict),
+            "malformed delegation receipt")
     p = receipt["payload"]
     required = ["role", "subject", "invocation_id", "context_id", "tool_trace",
                 "verdict", "evidence"]
     require(all(p.get(k) for k in required), "receipt missing independent provenance")
     require(p["verdict"] in {"PASS", "FAIL", "BLOCKED"}, "invalid review verdict")
     require(p["tool_trace"] != p["evidence"], "tool provenance and evidence must be distinct")
-    mac = hmac.new(key.encode("utf-8"), canonical(p).encode("utf-8"),
-                   hashlib.sha256).hexdigest()
-    require(hmac.compare_digest(mac, receipt["signature"]),
-            "untrusted receipt signature")
+    if "signature" in receipt:
+        require(bool(key), "BLOCKED: no trusted signature verifier configured")
+        require(isinstance(receipt["signature"], str), "malformed signature")
+        mac = hmac.new(key.encode("utf-8"), canonical(p).encode("utf-8"),
+                       hashlib.sha256).hexdigest()
+        require(hmac.compare_digest(mac, receipt["signature"]), "untrusted receipt signature")
+    else:
+        location = os.environ.get("INQUISITION_OPERATOR_TRUST_STORE")
+        require(bool(location), "BLOCKED: no trusted operator receipt store configured")
+        store = read_json(location)
+        require(store.get("schema") == "INQUISITION-OPERATOR-PINS-v1" and
+                isinstance(store.get("approved_payload_sha256"), list),
+                "invalid trusted operator receipt store")
+        require(digest(p) in store["approved_payload_sha256"],
+                "receipt payload not independently pinned by operator")
     return p
