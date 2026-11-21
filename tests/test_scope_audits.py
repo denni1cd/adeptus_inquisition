@@ -100,6 +100,16 @@ class GeneralizationTests(unittest.TestCase):
                 row["metrics"]["repair_cycles"]["value"] = 3
         self.assertEqual(self.compare(p, rows)["status"], "NO_IMPROVEMENT_DEMONSTRATED")
 
+    def test_general_requires_predeclared_benefit_across_task_families(self):
+        p = plan()
+        rows = trials(p)
+        for row in rows:
+            if row["case_id"] not in ("original", "transfer"):
+                row["metrics"]["repair_cycles"]["value"] = 3
+        self.assertEqual(self.compare(p, rows)["status"], "NO_IMPROVEMENT_DEMONSTRATED")
+        p["primary_outcome"] = "quality"
+        self.assertEqual(self.compare(p, trials(p))["status"], "NO_IMPROVEMENT_DEMONSTRATED")
+
     def test_reproduced_signal_and_efficiency_tradeoff(self):
         p = plan()
         rows = trials(p)
@@ -150,6 +160,13 @@ class AuditTests(unittest.TestCase):
         with self.assertRaises(GateError):
             audits.record(self.ledger, "campaign", q)
         self.assertFalse(audits.get(self.ledger, "campaign")["authorization"])
+
+    def test_late_material_author_cannot_self_audit(self):
+        self.begin()
+        p = packet(self.ledger, "diagnosis", {"finding_ref": "f", "finding_sha256": digest("f")})
+        p["basis"]["authors"] = [{"invocation_id": p["invocation_id"], "context_id": "new-context"}]
+        with self.assertRaises(GateError):
+            audits.record(self.ledger, "campaign", p)
 
     def test_open_objection_no_pass_revise_then_invalidate(self):
         first_stages(self.ledger)
