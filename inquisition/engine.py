@@ -285,7 +285,8 @@ class Ledger:
                 manifest["holdout_checks"], "falsifiable comparison and holdout required")
         cid = manifest["candidate_id"]
         if cid in self.data["candidates"]:
-            require(self.data["candidates"][cid]["manifest"] == manifest,
+            require(self.data["candidates"][cid]["event"] == event_id and
+                    self.data["candidates"][cid]["manifest"] == manifest,
                     "candidate ID is immutable")
             return self.data["candidates"][cid]
         item = {"event": event_id, "manifest": manifest, "classification": classification,
@@ -396,6 +397,7 @@ class Ledger:
             "commit": candidate["manifest"]["candidate_commit"],
             "content_sha256": p["content_sha256"], "kind": "VALIDATED_LOCAL",
             "candidate_id": candidate_id, "previous": prior,
+            "scope": candidate["manifest"]["scope"], "placement": candidate["manifest"]["placement"],
             "load_evidence": p["tool_trace"]
         }
         candidate["activation"] = "ACTIVE_PROVISIONAL"
