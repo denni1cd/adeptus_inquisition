@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .atif_adapter import EvidenceError, export
 from .comparison import compare
+from .scoped import compare_scoped
 from .ledger_bridge import attach
 from .vally_backend import grade
 
@@ -28,6 +29,9 @@ def main(argv=None):
     p = actions.add_parser("compare", help="Compare paired measured workflows, advisory only")
     p.add_argument("--input", required=True)
     p.add_argument("--output", required=True)
+    p = actions.add_parser("compare-scoped", help="Compare audited distinct tasks and repeated trials")
+    p.add_argument("--input", required=True)
+    p.add_argument("--output", required=True)
     p = actions.add_parser("attach", help="Attach evidence to paused event without approval")
     p.add_argument("--home", required=True)
     p.add_argument("--event-id", required=True)
@@ -44,13 +48,18 @@ def main(argv=None):
             result = attach(args.home, args.event_id, args.provenance,
                             args.grade, args.comparison)
         else:
-            result = compare(json.loads(Path(args.input).read_text(encoding="utf-8")))
+            data = json.loads(Path(args.input).read_text(encoding="utf-8"))
+            if args.action == "compare-scoped":
+                result = compare_scoped(data["plan"], data.get("scope"), data["baseline_commit"],
+                                        data["candidate_commit"], data["trials"])
+            else:
+                result = compare(data)
             out = Path(args.output)
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
-    except (EvidenceError, ValueError, OSError, json.JSONDecodeError) as exc:
+    except (EvidenceError, ValueError, TypeError, KeyError, OSError, json.JSONDecodeError) as exc:
         print(json.dumps({"status": "BLOCKED", "reason": str(exc)}), file=sys.stderr)
         return 2
 

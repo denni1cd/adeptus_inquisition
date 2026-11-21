@@ -1,10 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Trusted independent subagent receipt V1",
+  "title": "Trusted independent runtime receipt V1.2",
   "type": "object",
   "required": [
-    "payload",
-    "signature"
+    "payload"
   ],
   "properties": {
     "payload": {
@@ -62,12 +61,18 @@
         },
         "explicit": {
           "type": "boolean"
+        },
+        "audit_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Required for positive scope-campaign decision, protected approval and activation; not for legacy recovery."
         }
       }
     },
     "signature": {
       "type": "string",
-      "pattern": "^[a-f0-9]{64}$"
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Optional only when exact canonical payload digest is externally pinned in trusted operator store."
     }
   }
 }

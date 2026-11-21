@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Adeptus Inquisition event V1",
+  "title": "Adeptus Inquisition event V1.2",
   "type": "object",
   "required": [
     "event_id",
@@ -174,6 +174,43 @@
           "type": "string"
         }
       }
+    },
+    "improvement_scope": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "GENERAL"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "kind",
+            "target"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "DOMAIN",
+                "TASK"
+              ]
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "description": "Absent defaults to GENERAL. Only explicit operator directive can restrict or redirect."
     }
   },
   "additionalProperties": false

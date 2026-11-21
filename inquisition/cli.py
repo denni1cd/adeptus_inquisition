@@ -5,6 +5,7 @@ import os
 import sys
 
 from .engine import GateError, Ledger, read_json
+from .evaluation import audits
 
 
 def main(argv=None):
@@ -35,8 +36,11 @@ def main(argv=None):
     d.add_argument("--pr-url")
     d.add_argument("--approval", help="JSON file containing explicit, scoped Emperor approval")
     a = cmd("activate", "candidate_id")
-    a.add_argument("--receipt", help="signed trusted fresh-Work loader attestation")
+    a.add_argument("--receipt", help="trusted fresh target-runtime loader attestation")
     cmd("rollback", "repository")
+    cmd("audit-start", "event_id", "campaign_id", "authors")
+    cmd("audit-record", "campaign_id", "packet")
+    cmd("audit-digest", "candidate_id")
     cmd("show")
     args = p.parse_args(argv)
     try:
@@ -69,13 +73,20 @@ def main(argv=None):
         elif args.action == "activate":
             result = ledger.activate(args.candidate_id,
                                      read_json(args.receipt) if args.receipt else None, key)
+        elif args.action == "audit-start":
+            result = audits.start(ledger, args.event_id, args.campaign_id, read_json(args.authors))
+        elif args.action == "audit-record":
+            result = audits.record(ledger, args.campaign_id, read_json(args.packet))
+        elif args.action == "audit-digest":
+            result = {"audit_digest": audits.campaign_digest(ledger, ledger.data["candidates"][args.candidate_id]),
+                      "approval": False}
         elif args.action == "rollback":
             result = ledger.rollback(args.repository)
         else:
             result = ledger.data
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
-    except (GateError, KeyError, ValueError, OSError) as error:
+    except (GateError, KeyError, TypeError, ValueError, OSError) as error:
         print(json.dumps({"state": "BLOCKED", "reason": str(error)}, sort_keys=True),
               file=sys.stderr)
         return 2

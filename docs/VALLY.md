@@ -194,3 +194,6 @@ remain applicable.
 
 Vally supports offline measurement. It is not a substitute for observing
 whether future Adeptus executions actually improve.
+
+## V1.2 scoped comparisons and trace diagnostics
+The original compare command remains a legacy advisory pilot analysis, not a formal improvement gate. Use compare-scoped and the audit campaign in docs/SCOPE_AUDITS.md for actual adoption recommendations. The bundled profiles now include bounded repeated-action diagnostics; they are not quality rubrics. Treat their results as observed-trace signals only, especially if capture is PARTIAL. Vally threshold graders are NOT a proxy for correctness or independent boundary testing. Configure thresholds before a paired trial and audit their relevance; never optimize arbitrary command counts at the expense of correctness. The audit plan determines usable, independently supported quality and efficiency metrics. A missing metric remains unknown. The official grader documentation is https://microsoft.github.io/vally/reference/graders/max-repeat/.
