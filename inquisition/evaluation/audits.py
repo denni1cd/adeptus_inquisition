@@ -75,6 +75,15 @@ def record(ledger, cid, packet):
             "unresolved material objection cannot pass; adverse verdict needs evidence")
     basis = packet.get("basis")
     require(isinstance(basis, dict), "audit basis object required")
+    authors = basis.get("authors")
+    require(isinstance(authors, list) and bool(authors), "reviewed material author identities required")
+    for author in authors:
+        require(isinstance(author, dict) and nonempty(author.get("invocation_id"))
+                and nonempty(author.get("context_id")), "missing reviewed material author identity")
+        require(packet["invocation_id"] != author["invocation_id"] and
+                packet["context_id"] != author["context_id"], "author cannot audit own material")
+        if author not in c["authors"]:
+            c["authors"].append(copy.deepcopy(author))
     event = ledger.event(c["event_id"])
     require(basis.get("event_packet_hash") == event["packet_hash"],
             "audit must bind immutable event")
