@@ -1,4 +1,6 @@
-# Adeptus Inquisition V2
+# Adeptus Inquisition — v1.0.0
+
+**First stable release: v1.0.0.** The earlier “V2” label refers to the development iteration tested before this first release, not a previously shipped stable version.
 
 Independent process improvement and failure recovery. No external orchestrator knowledge is required.
 

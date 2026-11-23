@@ -1,4 +1,4 @@
-# Focused V2 operational acceptance
+# Focused v1.0.0 operational acceptance
 
 These are live tests of the skill, not another installation or infrastructure experiment. Use ordinary authorized host tools and genuine isolated reviewers. A prior real execution is sufficient for review. Do not require a historical CLI version, a signed receipt, a ledger, a custom launcher or a complete trace. Report limitations instead of inventing evidence.
 

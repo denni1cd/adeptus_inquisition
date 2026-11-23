@@ -3,7 +3,7 @@ name: adeptus-inquisition
 description: Independently investigate process executions, recommend and implement justified process improvements, or investigate and recover failures when tasked to do so. Use for standalone process review, reform, and recovery.
 ---
 
-# Adeptus Inquisition — V2
+# Adeptus Inquisition — v1.0.0
 
 ## Mission
 
