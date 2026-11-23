@@ -101,6 +101,20 @@ class BackendTests(unittest.TestCase):
             with self.assertRaises(EvidenceError):
                 grade(atif, ROOT / "evals/process/eval.yaml", atif, "recorded-branch-run")
 
+class SkillBoundaryTests(unittest.TestCase):
+    """Presence checks only: these do not prove agent behavior."""
+
+    def test_reform_does_not_rerun_evaluated_skill(self):
+        instructions = (ROOT / "skills/adeptus-inquisition/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("must not execute or replay the affected skill after changing it", instructions)
+        self.assertIn("operational effectiveness not yet verified", instructions)
+        self.assertIn("implementation integrity", instructions)
+
+    def test_recovery_keeps_targeted_verification(self):
+        instructions = (ROOT / "skills/adeptus-inquisition/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("direct reproduction of the failed boundary", instructions)
+        self.assertIn("At most three Inquisition recovery attempts", instructions)
+
 
 if __name__ == "__main__":
     unittest.main()
