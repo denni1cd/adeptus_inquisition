@@ -1,36 +1,22 @@
-# Adeptus Inquisition
+# Adeptus Inquisition V2
 
-A standalone, event-triggered ChatGPT Work skill for failure recovery and evidence-based improvement of reusable Adeptus workflows. It does not replace Work coordination, Strategerium's Rules Lawyer, Necroneerium's Shade, or Factorium's specialist factories.
+Independent process improvement and failure recovery. No external orchestrator knowledge is required.
 
-- Skill entrypoint: skills/adeptus-inquisition/SKILL.md
-- Deterministic ledger and CLI: inquisition/engine.py and inquisition/cli.py
-- Event and delegated-review schemas: schemas/
-- Reproducible clean, failed, improved and regressed examples: fixtures/
-- Local/CI executable tests: tests/
-- Integration and candid runtime caveats: docs/
+Install or update the skill at `skills/adeptus-inquisition/` under the existing skill name. A complete clone is optional if you want the Vally utilities. Read [SKILL.md](skills/adeptus-inquisition/SKILL.md).
 
-## Local standalone smoke tests
+## Usage
 
-Use `python3` on macOS/Linux. In Windows PowerShell, substitute `python` if `python3` resolves to the Microsoft Store app execution alias.
+- Review a completed execution and recommend improvements, without changing the process.
+- Review and reform a process: independently audit the recommendation, implement, validate and apply only within authorization.
+- Reform a previously reviewed recommendation.
+- Investigate and recover a specified failure.
 
-    python3 -m unittest discover -s tests -v
-    python3 -m inquisition.cli --home .adeptus_inquisition ingest --package fixtures/milestone.json
-    python3 -m inquisition.cli --home .adeptus_inquisition milestone --event-id evt-clean --inspection fixtures/clean_inspection.json
-    python3 -m inquisition.cli --home .adeptus_inquisition show
+The caller determines when to invoke Inquisition and what authority it has. The skill uses existing runtime tools and separate reviewer contexts, and maintains a simple case record. General improvement is the default; domain and task scopes are supported.
 
-Python 3.10 or later, standard library only.
+## Rebuild boundary
 
-## Use in ChatGPT Work
+V2 replaces the V1.2 mandatory event/ledger and receipt state machine with an instruction-led sequential workflow. No required trigger, orchestration integration, fixed runtime version, nested CLI launcher, fixed trial count, or signing service. Independent audits, risk-proportionate regression and transfer validation, three-attempt recovery and audit correction limits, protected approvals, repository authority and rollback remain.
 
-Install the directory skills/adeptus-inquisition/ using your Work environment's skill-import method from a pinned checkout. Verify the skill appears in a fresh Work invocation; repository presence alone does NOT install or activate it. Provide an authorized event JSON with complete evidence, and explicitly invoke adeptus-inquisition. See docs/OPERATIONS.md.
+Old V1.2 source, records and active pins are not migrated or deleted by this repository change. Preserve prior backups and case histories at installation; consult previous recovery attempts rather than resetting them. Restore the prior installation to roll back. V1.2's exact Git revision is `723af2886409e0a4f84c47a3247476727cf7f059`. Do not copy obsolete instructions into the active skill. No other skill is changed.
 
-### What remains unverified
-The offline gate tests execute real Python behavior and retry/version decisions, but **do not create real native Work subagents**. A Work-native delegation/audit bridge and fresh-agent skill loader probe must be validated in a separate actual Work run. Until then, required independent-agent acceptance is BLOCKED and the skill is not production-ready for autonomous adoption. Signatures from a unit test are not evidence of independent agents.
-
-No other Adeptus repository was modified.
-
-## Optional Vally offline process evaluation (V1.1)
-An isolated evaluation extension supports recorded Adeptus execution evidence -> ATIF + provenance sidecar -> offline `vally grade` -> conservative paired workflow comparison. It does **not** require Copilot or run the default Vally executor. Install Vally separately only when grading is needed (Node 22.15+ and `npm install -g @microsoft/vally-cli`). Start with `docs/VALLY.md`; the fixtures are synthetic examples, **not** evidence that a real Work run was observed or improved. V1 signed delegation/activation gates are deliberately unchanged pending a separately authorized provenance bridge.
-
-## V1.2 — scope, independent audits and generalization
-General improvement is the default. Explicit DOMAIN/TASK directives restrict recommendations and require conditional guidance and negative controls. Every positive formal decision requires a persisted scoped audit campaign: diagnosis, generalization, independent experimental plan, experimental results, final recommendation. See [docs/SCOPE_AUDITS.md](docs/SCOPE_AUDITS.md). Experimental work is permitted without trusted signing; authorization still needs genuine independent review and target-runtime loading. HMAC remains supported; an independent operator may instead pin exact inspected payload digests in a trust store inaccessible to execution agents. No automatic Work trace collector is implied.
+[Operational acceptance](docs/ACCEPTANCE.md) describes focused tests. [Optional Vally](skills/adeptus-inquisition/references/vally.md) can grade saved traces without a paid Copilot dependency.

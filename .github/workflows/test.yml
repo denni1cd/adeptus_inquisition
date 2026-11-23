@@ -1,4 +1,4 @@
-name: Inquisition deterministic gates
+name: Inquisition V2 optional tooling
 on:
   pull_request:
   push:
@@ -10,50 +10,30 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Verify separate pinned baseline and unmerged candidate worktrees
-        shell: bash
+      - name: Check skill entrypoint and optional Python tools
         run: |
-          git fetch origin main
-          git worktree add --detach "$RUNNER_TEMP/approved-baseline" origin/main
-          git worktree add --detach "$RUNNER_TEMP/provisional-candidate" "$GITHUB_SHA"
-          test "$(git -C "$RUNNER_TEMP/approved-baseline" rev-parse HEAD)" != "$(git -C "$RUNNER_TEMP/provisional-candidate" rev-parse HEAD)"
-          test -f "$RUNNER_TEMP/approved-baseline/LICENSE"
-          test -f "$RUNNER_TEMP/provisional-candidate/skills/adeptus-inquisition/SKILL.md"
-          python3 -c 'import hashlib,os,pathlib; p=pathlib.Path(os.environ["RUNNER_TEMP"])/"provisional-candidate/skills/adeptus-inquisition/SKILL.md"; print("PINNED_CANDIDATE_SKILL_SHA256",hashlib.sha256(p.read_bytes()).hexdigest())'
-      - name: Python standard library tests
-        run: python3 -m unittest discover -s tests -v
-      - name: Entry point smoke check
-        run: python3 -m inquisition.cli --help
+          test -f skills/adeptus-inquisition/SKILL.md
+          grep -q '^name: adeptus-inquisition$' skills/adeptus-inquisition/SKILL.md
+          python3 -m unittest discover -s tests -v
+          python3 -m inquisition.evaluation.cli --help
   offline-vally:
     runs-on: ubuntu-latest
-    env:
-      VALLY_TELEMETRY_OPTOUT: '1'
     permissions:
       contents: read
+    env:
+      VALLY_TELEMETRY_OPTOUT: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install offline Vally CLI (no Copilot invocation)
+      - name: Install known test version of optional grader
         run: npm install --global @microsoft/vally-cli@0.21.0
-      - name: Lint offline branch profiles
+      - name: Lint and grade real offline fixture with recorded string arguments
         run: |
-          for profile in evals/*/eval.yaml; do vally lint --eval-spec "$profile"; done
-      - name: Export synthetic fixture and run an actual offline grade
-        run: |
-          python3 -m inquisition.evaluation.cli export-atif --input fixtures/adeptus_run_sample.json --atif "$RUNNER_TEMP/run.atif.json" --provenance "$RUNNER_TEMP/run.provenance.json"
-          python3 -m inquisition.evaluation.cli grade --atif "$RUNNER_TEMP/run.atif.json" --profile evals/necroneerium/eval.yaml --stimulus recorded-branch-run --output "$RUNNER_TEMP/grade.jsonl"
+          vally lint --eval-spec evals/process/eval.yaml
+          python3 -c 'import json,os,pathlib; p=pathlib.Path(os.environ["RUNNER_TEMP"]); r=json.loads(pathlib.Path("fixtures/adeptus_run_sample.json").read_text()); r["events"][1]["tool_calls"][0]["arguments"]="python -m unittest"; (p/"run.json").write_text(json.dumps(r))'
+          python3 -m inquisition.evaluation.cli export-atif --input "$RUNNER_TEMP/run.json" --atif "$RUNNER_TEMP/run.atif.json" --provenance "$RUNNER_TEMP/run.provenance.json"
+          python3 -m inquisition.evaluation.cli grade --atif "$RUNNER_TEMP/run.atif.json" --profile evals/process/eval.yaml --stimulus recorded-branch-run --output "$RUNNER_TEMP/grade.jsonl"
           test -s "$RUNNER_TEMP/grade.jsonl"
-          python3 -c 'import json,os,pathlib; p=pathlib.Path(os.environ["RUNNER_TEMP"])/"grade.jsonl"; d=[json.loads(x) for x in p.read_text().splitlines() if x.strip()]; assert d and all(isinstance(x,dict) for x in d)'
-      - name: Compare synthetic paired execution evidence (advisory only)
-        run: |
-          python3 -m inquisition.evaluation.cli compare --input fixtures/paired_comparison_sample.json --output "$RUNNER_TEMP/comparison.json"
-          python3 -c 'import json,os,pathlib; d=json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"comparison.json").read_text()); assert d["approval"] is False and d["status"]=="SUPPORTED_FOR_INDEPENDENT_REVIEW"'
-      - name: Attach grading artifacts to the existing event ledger without approval
-        run: |
-          python3 -m inquisition.cli --home "$RUNNER_TEMP/inqstate" ingest --package fixtures/milestone.json
-          python3 -m inquisition.evaluation.cli attach --home "$RUNNER_TEMP/inqstate" --event-id evt-clean --provenance "$RUNNER_TEMP/run.provenance.json" --grade "$RUNNER_TEMP/grade.jsonl" --comparison "$RUNNER_TEMP/comparison.json"
-          python3 -c 'import json,os,pathlib; p=pathlib.Path(os.environ["RUNNER_TEMP"])/"inqstate/ledger.json"; d=json.loads(p.read_text()); assert d["events"]["evt-clean"]["disposition"]=="PAUSED" and d["events"]["evt-clean"]["findings"][-1]["authorization_effect"]=="NONE"'
+          python3 -c 'import json,os,pathlib; p=pathlib.Path(os.environ["RUNNER_TEMP"]); a=json.loads((p/"run.atif.json").read_text()); assert a["steps"][1]["tool_calls"][0]["arguments"]=={"raw_arguments":"python -m unittest"}; assert json.loads((p/"run.provenance.json").read_text())["completeness"]=="PARTIAL"; assert all(isinstance(json.loads(line),dict) for line in (p/"grade.jsonl").read_text().splitlines() if line.strip())'

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -60,9 +61,11 @@ def grade(atif_path, eval_spec, output_path, stimulus, vally_executable="vally")
         raise EvidenceError("Vally CLI not installed; install @microsoft/vally-cli separately")
     cmd = [executable, "grade", "--eval-spec", str(Path(eval_spec).resolve()),
            "--stimulus", stimulus, "--output", "jsonl"]
+    if Path(output_path).resolve() in (Path(atif_path).resolve(), Path(eval_spec).resolve()):
+        raise EvidenceError("grade output must not overwrite inputs")
     try:
         completed = subprocess.run(cmd, input=atif_bytes, capture_output=True, timeout=180,
-                                   check=False)
+                                   env=dict(os.environ, VALLY_TELEMETRY_OPTOUT="1"), check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise EvidenceError("offline Vally grade did not complete: " + str(exc)) from exc
     if completed.returncode != 0:

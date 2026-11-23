@@ -38,7 +38,7 @@ def adapt(record):
         raise EvidenceError("events must be a list (possibly empty)")
     capture = record.get("capture", {})
     if not isinstance(capture, dict) or any(
-        value not in (True, False) for value in capture.values()
+        type(value) is not bool for value in capture.values()
     ):
         raise EvidenceError("capture values must be booleans")
     steps = []
@@ -70,9 +70,15 @@ def adapt(record):
                 if cid in ids:
                     raise EvidenceError("duplicate tool call ID in step")
                 ids.add(cid)
-                args = call.get("arguments", {})
-                if not isinstance(args, (dict, str)):
-                    raise EvidenceError("tool arguments must be an object or string")
+                if "arguments" not in call:
+                    raise EvidenceError("tool arguments missing; do not invent them")
+                args = call["arguments"]
+                # ATIF tool arguments must be an object. Keep an observed raw
+                # argument string unchanged inside an explicit lossless wrapper.
+                if isinstance(args, str):
+                    args = {"raw_arguments": args}
+                if not isinstance(args, dict):
+                    raise EvidenceError("tool arguments must be an object or recorded string")
                 mapped.append({"tool_call_id": cid,
                                "function_name": call["function_name"],
                                "arguments": args})
@@ -124,7 +130,7 @@ def adapt(record):
         "missing_or_unproven": missing,
         "completeness": "PARTIAL" if missing or not events else "DECLARED_COMPLETE_NOT_AUTHENTICATED",
         "attestation": None,
-        "warning": "Source references and declared capture coverage are not host-authenticated.",
+        "warning": "Source references and declared capture coverage are not host-authenticated. Raw string arguments are preserved in a raw_arguments object; metrics may depend on capture completeness.",
     }
     return atif, manifest
 
@@ -133,6 +139,8 @@ def export(record_path, atif_path, manifest_path):
     record = json.loads(Path(record_path).read_text(encoding="utf-8"))
     atif, manifest = adapt(record)
     out, sidecar = Path(atif_path), Path(manifest_path)
+    if Path(record_path).resolve() in (out.resolve(), sidecar.resolve()):
+        raise EvidenceError("outputs must not overwrite source evidence")
     if out.resolve() == sidecar.resolve():
         raise EvidenceError("ATIF and manifest outputs must be different paths")
     out.parent.mkdir(parents=True, exist_ok=True)

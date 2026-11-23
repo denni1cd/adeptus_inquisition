@@ -1,9 +1,9 @@
-name: strategerium-recorded-process
-description: Observed trace diagnostics only; approved requirements and Rules Lawyer remain mandatory.
-version: "1.2"
+name: recorded-process-diagnostics
+description: Observed trace diagnostics only; independent acceptance remains mandatory.
+version: "2.0"
 stimuli:
   - name: recorded-branch-run
-    prompt: "Grade an externally recorded Strategerium execution."
+    prompt: "Grade an externally recorded process execution."
     graders:
       - type: exit-success
       - type: max-repeat

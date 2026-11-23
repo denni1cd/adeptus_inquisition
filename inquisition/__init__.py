@@ -1,1 +1,1 @@
-"""Adeptus Inquisition: event-triggered recovery and improvement gates."""
+"""Optional offline evidence tools for Adeptus Inquisition V2."""
